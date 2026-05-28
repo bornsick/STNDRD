@@ -1,0 +1,19 @@
+{
+  "name": "SHIP — STNDRD",
+  "short_name": "SHIP",
+  "description": "The austere core of STNDRD. What is in flight, and is it integrated?",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#000000",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
