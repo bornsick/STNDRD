@@ -1,0 +1,265 @@
+# STNDRD — Philosophy Brainstorm Prompt
+
+## Purpose
+
+Explore the philosophy, architecture, UX direction, and long-term evolution of STNDRD.
+
+STNDRD is intended to become:
+
+- a personal operating system
+- a methodology
+- a living documentation system
+- a strategic self-improvement framework
+- eventually an app/platform/ecosystem
+
+The goal of this prompt is to deeply explore:
+
+- what STNDRD truly is
+- what makes it unique
+- how the system should evolve
+- what mechanics fit the philosophy
+- what should be avoided
+
+## Core Philosophy
+
+**STNDRD is NOT:**
+
+- a productivity app
+- a habit tracker
+- a dopamine-driven dashboard
+- a "life optimization" toy
+- a social platform
+- a task manager
+
+**STNDRD IS:**
+
+- a system for sequential implementation
+- a framework for intentional evolution
+- a personal operating system
+- a strategic self-awareness layer
+- an implementation-based progression system
+
+## Fundamental Principles
+
+- One upgrade at a time
+- Full integration before expansion
+- Progress is shipped, not tracked
+- Focus deeply
+- Integrate fully
+- Ship carefully
+- Real evolution over fake optimization
+- Implementation over intention
+- Stability over hype
+- Sequential progression over scattered improvement
+
+## Core Concept
+
+The system revolves around **implementations**.
+
+An implementation can exist in:
+
+- personal life
+- identity
+- behavior
+- systems
+- routines
+- skills
+- app development itself
+
+Every implementation has:
+
+- a single focus
+- a progress state
+- a bottleneck
+- an implementation window
+- a stabilization process
+- a SHIP state
+
+## Meaning of 100%
+
+100% does NOT mean perfection.
+
+100% means:
+
+- operational
+- stable
+- sustainable
+- integrated into behavior
+- embodied
+- reliable under normal conditions
+
+The SHIP state only appears once the implementation is truly integrated.
+
+## The SHIP Philosophy
+
+The app itself evolves through shipping.
+The user evolves through shipping.
+
+Examples:
+
+- Sleep consistency shipped
+- Morning routine shipped
+- Focus system shipped
+- Dashboard v1 shipped
+- State engine shipped
+
+Progress becomes visible through implementations.
+
+## Product Direction
+
+The first version should remain:
+
+- extremely minimal
+- focused
+- intentional
+- calm
+- low-noise
+- system-oriented
+
+Avoid feature overload.
+
+The app should feel like:
+
+- an operating system
+- a strategic dashboard
+- a deployment environment
+- a personal control center
+
+**Visual direction:**
+
+- black and white
+- minimal typography
+- industrial/system aesthetics
+- military handbook energy
+- low stimulation
+- clean hierarchy
+
+## Areas To Explore
+
+Explore ideas for:
+
+- implementation lifecycle
+- SHIP mechanics
+- implementation windows
+- bottleneck detection
+- state systems
+- momentum systems
+- identity integration
+- progression visualization
+- strategic dashboards
+- operating modes
+- sequential upgrades
+- stabilization periods
+- personal versioning systems
+- app versioning philosophy
+- implementation psychology
+- implementation friction
+- implementation decay
+- long-term evolution tracking
+- future AI integration
+- behavioral pattern recognition
+- strategic self-awareness systems
+
+## Important Constraints
+
+**Avoid:**
+
+- generic startup advice
+- shallow self-improvement ideas
+- social media mechanics
+- productivity culture clichés
+- feature bloat
+- gamification addiction loops
+- endless tracking systems
+- "optimize everything" philosophy
+
+**Prioritize:**
+
+- clarity
+- intentionality
+- focus
+- strategic evolution
+- implementation depth
+- identity integration
+- simplicity
+- operational thinking
+- systems thinking
+
+## Desired Output
+
+Respond with:
+
+1. Core philosophy insights
+2. What makes STNDRD unique
+3. Strong product directions
+4. Dangerous pitfalls to avoid
+5. Best mechanics to explore
+6. MVP recommendations
+7. Long-term vision ideas
+8. UX/UI concepts
+9. Naming/vocabulary ideas
+10. Deep conceptual observations
+11. Strategic philosophical insights
+12. Implementation psychology insights
+
+Think like:
+
+- a systems designer
+- an operating system architect
+- a philosopher
+- a product strategist
+- a behavioral systems engineer
+
+Do not give shallow or generic advice.
+
+## Additional Notes
+
+The app itself should embody the philosophy.
+
+The development process should follow the same principles as the life system:
+
+- one implementation at a time
+- complete integration before expansion
+- visible evolution through shipping
+
+STNDRD should evolve like a living operating system.
+
+## Personal Notes
+
+*(Add future observations here)*
+
+### Insights
+
+- The development process is itself an implementation. The first thing SHIP ships is SHIP — running standalone on phone, no PC tether.
+- "Shipped, not tracked" works because tracking rewards the wrong moment (recording behavior substitutes for the behavior).
+- The system's power is subtractive: its value comes from what it refuses to let you do. It dies by accretion of reasonable additions, not by one bad decision.
+
+### Future Ideas
+
+- AI as systems analyst (reads changelog + state, surfaces structural observations), never a coach.
+- Implementation templates as shareable specs — portable, not a social feed.
+
+### Things To Avoid
+
+- Letting the queue become a backlog become a tracker.
+- Fake shipping (self-declaring 100% with no stabilization gate).
+- Decay tracking turning into guilt/shame infrastructure.
+- The Scoreboard becoming the app you open by default. SHIP is the front door.
+
+### New Vocabulary
+
+- **Implementation** (the unit) · **Deploy** (begin) · **Window** (active period) · **Bottleneck** (the single blocker)
+- **Stabilization** (mandatory dwell) · **Gate** (ship condition) · **Ship / Shipped** (completion, gated)
+- **Version** (the self, incremented) · **Changelog** (history) · **Patch** (decay fix) · **Deprecate** (retire)
+- **Signal** (the one-way valve from Scoreboard → SHIP) · **Milestone** (a ship that grants a reward)
+- **Recovery Milestone** (always reachable; grants permission on a down week)
+
+### Potential Features
+
+- Three apps: SHIP (core), Field Manual (Obsidian), Scoreboard (dopamine, auto-fed).
+- Milestone-unlocked reward hub (wishlist, not store; permission unconditional once granted).
+- See [`STNDRD_Data_Contract.md`](STNDRD_Data_Contract.md) for the full architecture and the wall between apps.
+
+### Philosophy Evolution
+
+- **v0:** text-in-chat core. First implementation = run standalone on phone without PC.
