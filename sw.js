@@ -2,7 +2,7 @@
    Caches the app so it runs standalone on a phone with no network.
    Bump CACHE on any asset change to invalidate the old shell. */
 
-const CACHE = "ship-v0-2";
+const CACHE = "ship-v0-3";
 const ASSETS = [
   "./",
   "./index.html",

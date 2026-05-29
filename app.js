@@ -646,6 +646,21 @@
   /* ───────────────── Boot ───────────────── */
   render();
 
+  // Disable pinch-zoom. iOS Safari ignores user-scalable=no in the viewport
+  // meta, so block its (WebKit-only) gesture events directly. This is a
+  // single-user system; no zoom is intended.
+  ["gesturestart", "gesturechange", "gestureend"].forEach((evt) =>
+    document.addEventListener(evt, (e) => e.preventDefault())
+  );
+  // Belt-and-suspenders: cancel multi-touch pinch on touchmove.
+  document.addEventListener(
+    "touchmove",
+    (e) => {
+      if (e.touches && e.touches.length > 1) e.preventDefault();
+    },
+    { passive: false }
+  );
+
   // Re-evaluate the gate when the app regains focus (dwell time may have elapsed).
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden && state.active) render();
