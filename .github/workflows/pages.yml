@@ -1,0 +1,46 @@
+name: Deploy SHIP to GitHub Pages
+
+# Publishes the static SHIP app so it can be installed standalone on a phone.
+on:
+  push:
+    branches:
+      - main
+      - claude/initial-app-build-v4ozM
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow one concurrent deploy; let an in-progress run finish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+        with:
+          # Enable Pages (build type: github-actions) via the API if it isn't
+          # already, so the deploy doesn't depend on the manual settings toggle.
+          enablement: true
+
+      - name: Upload site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          # The whole repo root is the static site (no build step).
+          path: .
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
