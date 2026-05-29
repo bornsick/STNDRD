@@ -31,6 +31,11 @@ html, body {
   font-family: var(--mono);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  /* Don't let iOS rescale text on orientation change, and suppress the
+     double-tap-to-zoom gesture while still allowing pinch-zoom. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  touch-action: manipulation;
 }
 
 body {
@@ -179,14 +184,16 @@ main {
 }
 .bottleneck__text {
   flex: 1;
-  font-size: 0.95rem;
+  /* 16px: iOS Safari auto-zooms on focus of anything under 16px. Keep the
+     static text matched to the edit field so swapping them doesn't reflow. */
+  font-size: 16px;
   line-height: 1.4;
   word-break: break-word;
 }
 .bottleneck__edit {
   flex: 1;
   font-family: var(--mono);
-  font-size: 0.95rem;
+  font-size: 16px; /* prevent iOS focus auto-zoom */
   border: none;
   border-bottom: 1px solid var(--line);
   background: transparent;
@@ -410,7 +417,7 @@ main {
 .field__input {
   width: 100%;
   font-family: var(--mono);
-  font-size: 0.95rem;
+  font-size: 16px; /* prevent iOS focus auto-zoom (must be >= 16px) */
   padding: 11px 12px;
   border: 1.5px solid var(--line);
   background: var(--paper);
