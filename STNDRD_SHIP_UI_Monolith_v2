@@ -1,0 +1,273 @@
+# STNDRD — SHIP UI & Monolith Specification v2
+
+## Core Philosophy
+
+SHIP is a personal operating system for implementation.
+
+Not a habit tracker.
+Not a productivity app.
+Not a dashboard.
+
+The UI should feel:
+- Editorial
+- Premium
+- Calm
+- Intentional
+- Spacious
+
+---
+
+# Screen 01 — Home
+
+## Goal
+
+What am I integrating right now?
+
+```text
+v1.4.0
+
+Sleep
+Consistency
+
+[ Monolith ]
+
+Integrating
+
+14 days held
+7 days remaining
+
+Current Friction
+
+Phone use after 10 PM
+```
+
+The implementation name is the hero.
+
+No dashboard.
+No widgets.
+No clutter.
+
+---
+
+# Screen 02 — Implementation Detail
+
+```text
+Sleep
+Consistency
+
+[ Large Monolith ]
+
+State
+Stabilizing
+
+Window
+Apr 1 → Apr 30
+
+Signal
+Held
+
+Current Friction
+Phone use after 10 PM
+
+Open Manual
+```
+
+The Monolith occupies most of the screen.
+
+---
+
+# Screen 03 — Gate Open
+
+```text
+Gate
+
+OPEN
+
+[ Stable Monolith ]
+
+Requirements Satisfied
+
+✓ Stabilization Complete
+✓ Signal Held
+```
+
+No Ship button.
+
+The Monolith itself becomes interactive.
+
+---
+
+# Screen 04 — Shipped
+
+```text
+v1.5.0
+
+Sleep
+Consistency
+
+SHIPPED
+
+April 28
+
+[ Solid Monolith ]
+
+Added to Changelog
+```
+---
+
+# The Monolith
+
+The Monolith is the visual embodiment of integration.
+
+It is not:
+- a progress bar
+- a completion circle
+- an activity ring
+- a streak tracker
+
+It represents:
+
+Fragmentation
+→ Organization
+→ Coherence
+→ Stability
+→ Permanence
+
+## Deploying
+
+- fragmented
+- asymmetrical
+- incomplete
+
+## Stabilizing
+
+- organizing
+- converging
+- becoming coherent
+
+## Gate Open
+
+- balanced
+- symmetrical
+- stable
+
+## Shipped
+
+- solid
+- permanent
+- architectural
+
+---
+
+# Shipping Interaction
+
+SHIP has no primary Ship button.
+
+The Monolith itself is the shipping mechanism.
+
+## Tap
+
+A subtle haptic occurs.
+
+A small label appears:
+
+Hold to Ship
+
+## Hold
+
+Fragments slowly converge.
+
+Structure tightens.
+
+Visual weight increases.
+
+## Completion
+
+The Monolith locks into a permanent solid form.
+
+Version updates:
+
+v1.4.0 → v1.5.0
+
+---
+
+# Haptics
+
+Touch:
+- soft haptic
+
+Hold:
+- increasing weight
+
+Completion:
+- one deep pulse
+
+Reference:
+
+- sealing a vault
+- signing a document
+- committing code
+
+Never gamified.
+
+---
+
+# Sound
+
+Optional.
+
+Use:
+- stone
+- metal
+- mechanical lock
+
+Avoid:
+- bells
+- sparkles
+- achievement sounds
+
+---
+
+# Visual Style
+
+Inspired by:
+- Synvy
+- Oura
+- Apple Health
+- Luxury editorial design
+
+Colors:
+
+Background: #0D0D0F
+Primary: #F4F4F2
+Secondary: #8D8D93
+Accent: #F5F0E8
+
+Typography:
+
+Hero: 72–120px
+
+Massive whitespace.
+Editorial hierarchy.
+
+---
+
+# Claude Prompt
+
+Design a premium Dribbble-quality concept board for SHIP.
+
+Screens:
+1. Home
+2. Implementation Detail
+3. Gate Open
+4. Shipped
+
+Requirements:
+- Synvy-inspired composition
+- Editorial luxury aesthetic
+- Dark mode
+- Massive typography
+- Monolith as central visual identity
+- Monolith hold-to-ship interaction
+- Minimal navigation
+- Calm, intentional atmosphere
