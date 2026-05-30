@@ -5,28 +5,26 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 <meta name="theme-color" content="#0B0D11" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
-<title>Monolith — Fluid</title>
+<title>Monolith — Liquid Figure</title>
 <style>
 :root{--bg:#0B0D11;--primary:#F4F4F2;--secondary:#9AA1AC;--accent:#F5F0E8;
   --font:-apple-system,"SF Pro Display","Inter","Helvetica Neue",system-ui,sans-serif;}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--primary);font-family:var(--font);
   -webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%;touch-action:none;overscroll-behavior:none;}
-/* cool, airy depth behind the fluid — echoes the reference's soft light */
 body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
-  background:radial-gradient(80% 55% at 50% 38%,rgba(120,140,175,.18),transparent 70%),
+  background:radial-gradient(70% 50% at 50% 40%,rgba(110,135,175,.16),transparent 70%),
              radial-gradient(120% 70% at 50% 120%,rgba(0,0,0,.5),transparent 60%);}
-.wrap{position:fixed;inset:0;z-index:1;display:flex;flex-direction:column;}
-.top{display:flex;justify-content:space-between;align-items:center;
+.top{position:fixed;z-index:4;top:0;left:0;right:0;display:flex;justify-content:space-between;
   padding:max(18px,env(safe-area-inset-top)) 24px 0;font-size:12px;letter-spacing:.2em;color:var(--secondary);}
-.title{position:absolute;left:24px;top:max(74px,calc(env(safe-area-inset-top) + 56px));z-index:3;}
+.title{position:fixed;left:24px;top:max(74px,calc(env(safe-area-inset-top) + 56px));z-index:4;}
 .title .k{font-size:12px;letter-spacing:.18em;color:var(--secondary);text-transform:uppercase;}
 .title .h{font-weight:300;font-size:clamp(34px,9vw,48px);letter-spacing:-.02em;line-height:1;margin-top:6px;}
-#fluid{position:absolute;inset:0;z-index:1;width:100%;height:100%;display:block;}
-.statelabel{position:absolute;left:0;right:0;bottom:178px;z-index:3;text-align:center;
+#fluid{position:fixed;inset:0;z-index:1;width:100%;height:100%;display:block;}
+.statelabel{position:fixed;left:0;right:0;bottom:176px;z-index:4;text-align:center;
   font-size:11px;letter-spacing:.42em;text-transform:uppercase;color:var(--secondary);transition:color .3s;}
 .statelabel.sealed{color:var(--accent);}
-.panel{position:absolute;left:0;right:0;bottom:0;z-index:3;
+.panel{position:fixed;left:0;right:0;bottom:0;z-index:4;
   padding:0 28px max(26px,env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:14px;}
 .slider{-webkit-appearance:none;appearance:none;width:100%;height:2px;border-radius:2px;background:rgba(154,161,172,.3);outline:none;}
 .slider::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 1px rgba(0,0,0,.3);}
@@ -38,115 +36,118 @@ body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
 <body>
 <div class="seal-flash" id="flash"></div>
 <canvas id="fluid"></canvas>
-<div class="wrap">
-  <div class="top"><span>11:30</span><span>SHIP · v2</span></div>
-</div>
+<div class="top"><span>11:30</span><span>SHIP · v2</span></div>
 <div class="title"><div class="k">Implementation</div><div class="h">Sleep<br>Consistency</div></div>
 <div class="statelabel" id="state">DEPLOYING</div>
 <div class="panel">
   <input class="slider" id="slider" type="range" min="0" max="1000" value="0">
   <div class="scaleline"><span>Deploying</span><span>Stabilizing</span><span>Open</span><span>Sealed</span></div>
-  <div class="hint">drag to scrub formation · hold the form to ship</div>
+  <div class="hint">drag to scrub formation · hold the figure to ship</div>
 </div>
 
 <script>
 const TAU=Math.PI*2, rnd=(a,b)=>a+Math.random()*(b-a),
-      lerp=(a,b,k)=>a+(b-a)*k, clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),
-      easeIO=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;
+      lerp=(a,b,k)=>a+(b-a)*k, clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 
 const disp=document.getElementById('fluid'), D=disp.getContext('2d');
 const flash=document.getElementById('flash'), stateEl=document.getElementById('state'),
       slider=document.getElementById('slider');
 
-let CW,CH,cx,cy,bw,bh,dpr,buf,B,S=0.5,bW,bH,blobs=[];
+let CW,CH,cx,cy,dpr,buf,B,bW,bH,blobs=[],S=0.5,glowY=0;
 
-function silhouette(){ // monolith slab geometry in display coords
-  bw=CW*0.30; bh=CH*0.50; cx=CW*0.52; cy=CH*0.46;
+// pick a point inside a capsule (segment A-B with radius r)
+function ptInCapsule(ax,ay,bx,by,r){
+  const tt=Math.random(), x=lerp(ax,bx,tt), y=lerp(ay,by,tt),
+        a=rnd(0,TAU), rr=Math.sqrt(Math.random())*r;
+  return {x:x+Math.cos(a)*rr, y:y+Math.sin(a)*rr};
 }
-function tri(){return (Math.random()+Math.random())/2;} // centre-biased [0,1]
+
 function setup(){
   dpr=Math.min(2,window.devicePixelRatio||1);
   CW=window.innerWidth; CH=window.innerHeight;
   disp.width=CW*dpr; disp.height=CH*dpr; D.setTransform(dpr,0,0,dpr,0,0);
-  silhouette();
-  // low-res buffer for cheap, naturally-soft fluid
   buf=document.createElement('canvas'); bW=Math.round(CW*S); bH=Math.round(CH*S);
   buf.width=bW; buf.height=bH; B=buf.getContext('2d');
+
+  // ── parametric human figure (display coords) ──
+  const FH=CH*0.56; cx=CW*0.5; cy=CH*0.44;
+  const headY=cy-FH*0.5, feetY=cy+FH*0.5, rHead=FH*0.085,
+        shY=headY+rHead*1.7, hipY=shY+FH*0.30, shH=FH*0.17;
+  glowY=cy;
+  const parts=[ // ax,ay,bx,by,radius,count
+    [cx,headY, cx,headY, rHead,           8],
+    [cx-shH,shY, cx+shH,shY, FH*0.055,    10],   // shoulders
+    [cx,shY, cx,hipY, FH*0.125,           22],   // torso
+    [cx-shH*0.95,shY, cx-shH*1.05,hipY+FH*0.05, FH*0.04, 8],  // left arm
+    [cx+shH*0.95,shY, cx+shH*1.05,hipY+FH*0.05, FH*0.04, 8],  // right arm
+    [cx-FH*0.05,hipY, cx-FH*0.055,feetY, FH*0.05, 10],        // left leg
+    [cx+FH*0.05,hipY, cx+FH*0.055,feetY, FH*0.05, 10],        // right leg
+  ];
   blobs=[];
-  for(let i=0;i<40;i++){
-    // target inside the slab (centre-biased so the core is dense)
-    const tx=cx + (tri()-0.5)*bw*1.05;
-    const ty=cy + (tri()-0.5)*bh*1.05;
-    const a=rnd(0,TAU), r=rnd(CW*0.15,CW*0.6);
-    blobs.push({
-      tx:tx*S, ty:ty*S,
-      x:(cx+Math.cos(a)*r)*S, y:(cy+Math.sin(a)*r)*S,
-      vx:0,vy:0, r:rnd(16,30), ph:rnd(0,TAU), sp:rnd(.6,1.4)
-    });
+  for(const [ax,ay,bx,by,r,n] of parts){
+    for(let i=0;i<n;i++){
+      const t=ptInCapsule(ax,ay,bx,by,r);
+      const a=rnd(0,TAU), rad=rnd(CW*0.2,CW*0.75);
+      blobs.push({
+        tx:t.x*S, ty:t.y*S,
+        x:(cx+Math.cos(a)*rad)*S, y:(cy+Math.sin(a)*rad)*S,
+        vx:0,vy:0, r:rnd(9,16)*(r>FH*0.1?1.25:1), ph:rnd(0,TAU), sp:rnd(.6,1.3)
+      });
+    }
   }
 }
 addEventListener('resize',setup);
 
 function drawFluid(t,time){
-  const turb=lerp(1.15,0.05,t), attr=lerp(0.0008,0.075,t), damp=0.87;
+  const turb=lerp(1.05,0.03,t), attr=lerp(0.0009,0.085,t), damp=0.86;
   B.clearRect(0,0,bW,bH);
   B.globalCompositeOperation='lighter';
-  B.filter=`blur(${lerp(8,3.2,t)}px)`;
-  const r0=Math.round(lerp(150,247,t)), g0=Math.round(lerp(170,241,t)), b0=Math.round(lerp(208,233,t));
+  B.filter=`blur(${lerp(3,1,t)}px)`;                 // far less blur than before
+  const r0=Math.round(lerp(150,247,t)), g0=Math.round(lerp(172,241,t)), b0=Math.round(lerp(210,233,t));
   for(const p of blobs){
-    // curl-ish turbulent flow + attraction to silhouette target
     const nx=Math.sin(p.y*0.05+time*0.0006*p.sp)+Math.cos(p.x*0.04-time*0.0005);
     const ny=Math.cos(p.x*0.05-time*0.0006*p.sp)+Math.sin(p.y*0.04+time*0.0005);
-    let fx=nx*turb, fy=ny*turb-0.04*turb;
+    let fx=nx*turb, fy=ny*turb-0.03*turb;
     fx+=(p.tx-p.x)*attr; fy+=(p.ty-p.y)*attr;
     p.vx=(p.vx+fx)*damp; p.vy=(p.vy+fy)*damp;
     p.x+=p.vx; p.y+=p.vy;
-    const rr=p.r*(1+0.12*Math.sin(time*0.001*p.sp+p.ph))*(1-0.18*t);
+    const rr=p.r*(1+0.08*Math.sin(time*0.001*p.sp+p.ph))*(1-0.12*t);
     const g=B.createRadialGradient(p.x,p.y,0,p.x,p.y,rr);
-    g.addColorStop(0,`rgba(${r0},${g0},${b0},${0.42+0.20*t})`);
-    g.addColorStop(.55,`rgba(${r0-30},${g0-25},${b0-15},${0.10+0.06*t})`);
+    // tighter, harder-edged gradient => liquid (mercury) instead of smoke
+    g.addColorStop(0,`rgba(${r0},${g0},${b0},${0.78})`);
+    g.addColorStop(.72,`rgba(${r0-26},${g0-22},${b0-12},${0.5})`);
     g.addColorStop(1,'rgba(0,0,0,0)');
     B.fillStyle=g; B.beginPath(); B.arc(p.x,p.y,rr,0,TAU); B.fill();
   }
   B.filter='none'; B.globalCompositeOperation='source-over';
 
   D.clearRect(0,0,CW,CH);
+  // soft glow behind the figure as it coheres -> permanence
+  if(t>0.5){const a=(t-0.5)/0.5, gg=D.createRadialGradient(cx,glowY,8,cx,glowY,CH*0.34);
+    gg.addColorStop(0,`rgba(245,240,232,${0.10*a})`); gg.addColorStop(1,'transparent');
+    D.fillStyle=gg; D.fillRect(0,0,CW,CH);}
+  // contrast pass turns the additive field into connected liquid with crisp edges
   D.imageSmoothingEnabled=true;
-  D.globalAlpha=1;
+  D.filter=`blur(${lerp(1.6,0.4,t)}px) contrast(${lerp(1.5,2.2,t)})`;
+  if(t>0.85){ D.save(); D.shadowColor='rgba(245,240,232,'+(t-0.85)/0.15*0.6+')'; D.shadowBlur=26*((t-0.85)/0.15); }
   D.drawImage(buf,0,0,CW,CH);
-
-  // crisp edge emerges as it seals -> "solid, permanent"
-  if(t>0.82){
-    const a=(t-0.82)/0.18;
-    roundSlab(D, cx-bw/2, cy-bh/2, bw, bh, Math.min(bw,bh)*0.22);
-    D.strokeStyle=`rgba(245,240,232,${0.5*a})`; D.lineWidth=1.2; D.stroke();
-    D.save(); D.shadowBlur=30*a; D.shadowColor='rgba(245,240,232,'+0.5*a+')'; D.stroke(); D.restore();
-  }
-}
-function roundSlab(c,x,y,w,h,r){
-  c.beginPath();
-  c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r);
-  c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath();
+  if(t>0.85) D.restore();
+  D.filter='none';
 }
 
 /* radial hold-dial echoing the reference control */
 function drawDial(k){
   if(k<=0) return;
-  const ax=cx, ay=cy+bh/2+58, R=44, A0=Math.PI*0.75, A1=Math.PI*2.25;
-  D.save();
-  // ticks
-  for(let i=0;i<=28;i++){const a=lerp(A0,A1,i/28), on=i/28<=k;
-    const r1=R+(i%7===0?9:5), x1=ax+Math.cos(a)*R, y1=ay+Math.sin(a)*R,
-          x2=ax+Math.cos(a)*r1, y2=ay+Math.sin(a)*r1;
-    D.strokeStyle=on?'rgba(245,240,232,.85)':'rgba(154,161,172,.3)'; D.lineWidth=1.4;
+  const ax=cx, ay=CH*0.44+CH*0.30, R=44, A0=Math.PI*0.75, A1=Math.PI*2.25;
+  for(let i=0;i<=28;i++){const a=lerp(A0,A1,i/28), on=i/28<=k,
+    r1=R+(i%7===0?9:5), x1=ax+Math.cos(a)*R, y1=ay+Math.sin(a)*R,
+    x2=ax+Math.cos(a)*r1, y2=ay+Math.sin(a)*r1;
+    D.strokeStyle=on?'rgba(245,240,232,.85)':'rgba(154,161,172,.28)'; D.lineWidth=1.4;
     D.beginPath();D.moveTo(x1,y1);D.lineTo(x2,y2);D.stroke();}
-  // knob
   const ka=lerp(A0,A1,k), kx=ax+Math.cos(ka)*R, ky=ay+Math.sin(ka)*R;
   D.fillStyle='#fff';D.beginPath();D.arc(kx,ky,7,0,TAU);D.fill();
-  D.restore();
 }
 
-/* state machine */
 let t=0, baseT=0, holding=false, holdStart=0, sealed=false, holdK=0;
 const HOLD=1600;
 const stateName=v=>v>=.999?'SEALED · v1.5.0':v>=.7?'GATE OPEN':v>=.34?'STABILIZING':'DEPLOYING';
