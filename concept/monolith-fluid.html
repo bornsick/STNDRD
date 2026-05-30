@@ -79,12 +79,17 @@ function setup(){
     [cx-FH*0.05,hipY, cx-FH*0.058,feetY, FH*0.05, 14],          // left leg
     [cx+FH*0.05,hipY, cx+FH*0.058,feetY, FH*0.05, 14],          // right leg
   ];
+  // abstract organic mass (Synvy-like) — the other end of the morph
+  const ab=[[cx,cy-FH*0.08,FH*0.20],[cx+FH*0.11,cy+FH*0.06,FH*0.17],[cx-FH*0.10,cy+FH*0.16,FH*0.15]];
+  const ptAbstract=()=>{const c=ab[Math.floor(Math.random()*ab.length)],
+    a=rnd(0,TAU), r=Math.sqrt(Math.random())*c[2];
+    return {x:c[0]+Math.cos(a)*r, y:c[1]+Math.sin(a)*r};};
   blobs=[];
   for(const [ax,ay,bx,by,r,n] of parts){
     for(let i=0;i<n;i++){
-      const tg=ptInCapsule(ax,ay,bx,by,r);
+      const tg=ptInCapsule(ax,ay,bx,by,r), ta=ptAbstract();
       const a=rnd(0,TAU), rad=rnd(CW*0.2,CW*0.7);
-      blobs.push({tx:tg.x*S, ty:tg.y*S,
+      blobs.push({tHx:tg.x*S, tHy:tg.y*S, tAx:ta.x*S, tAy:ta.y*S,
         x:(cx+Math.cos(a)*rad)*S, y:(cy+Math.sin(a)*rad)*S,
         vx:0,vy:0, r:rnd(0.62,0.95)*r*S, ph:rnd(0,TAU), sp:rnd(.6,1.2)});
     }
@@ -94,16 +99,24 @@ addEventListener('resize',setup);
 
 function drawFluid(t,time){
   const turb=lerp(0.8,0.02,t), attr=lerp(0.001,0.085,t), damp=0.85;
+  // morph: 0 = human silhouette, 1 = abstract swirling mass. Leans abstract as
+  // it integrates, and breathes continuously so it never locks into a person.
+  const mm=clamp(0.34+0.40*t+0.22*Math.sin(time*0.00035),0,1);
+  const ang=time*0.00012, ca=Math.cos(ang), sa=Math.sin(ang), CXS=cx*S, CYS=cy*S;
 
   // 1) figure mask (white) into low-res buffer
   B.clearRect(0,0,bW,bH);
   B.globalCompositeOperation='source-over';
   B.filter=`blur(${lerp(3.4,1.8,t)}px)`;
   for(const p of blobs){
+    // morphed target: human <-> slowly-swirling abstract mass
+    const dax=p.tAx-CXS, day=p.tAy-CYS,
+          rax=CXS+dax*ca-day*sa, ray=CYS+dax*sa+day*ca,
+          mtx=lerp(p.tHx,rax,mm), mty=lerp(p.tHy,ray,mm);
     const nx=Math.sin(p.y*0.05+time*0.0005*p.sp)+Math.cos(p.x*0.04-time*0.0004);
     const ny=Math.cos(p.x*0.05-time*0.0005*p.sp)+Math.sin(p.y*0.04+time*0.0004);
     let fx=nx*turb, fy=ny*turb-0.02*turb;
-    fx+=(p.tx-p.x)*attr; fy+=(p.ty-p.y)*attr;
+    fx+=(mtx-p.x)*attr; fy+=(mty-p.y)*attr;
     p.vx=(p.vx+fx)*damp; p.vy=(p.vy+fy)*damp; p.x+=p.vx; p.y+=p.vy;
     const rr=p.r*(1+0.06*Math.sin(time*0.001*p.sp+p.ph));
     const g=B.createRadialGradient(p.x,p.y,0,p.x,p.y,rr);
