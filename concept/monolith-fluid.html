@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 <meta name="theme-color" content="#070809" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
-<title>Monolith — Energy Core</title>
+<title>Monolith — Anomaly Core</title>
 <style>
 :root{--bg:#070809;--primary:#F4F4F2;--secondary:#9AA1AC;--accent:#F5F0E8;
   --font:-apple-system,"SF Pro Display","Inter","Helvetica Neue",system-ui,sans-serif;}
@@ -28,7 +28,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--primary);font-fa
 .slider::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 1px rgba(0,0,0,.3);}
 .scaleline{display:flex;justify-content:space-between;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:rgba(154,161,172,.5);}
 .hint{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:rgba(154,161,172,.6);text-align:center;}
-.seal-flash{position:fixed;inset:0;background:#bfe9ff;z-index:9;opacity:0;pointer-events:none;transition:opacity .12s;mix-blend-mode:screen;}
+.seal-flash{position:fixed;inset:0;background:#eafff6;z-index:9;opacity:0;pointer-events:none;transition:opacity .12s;mix-blend-mode:screen;}
 </style>
 </head>
 <body>
@@ -52,21 +52,9 @@ const disp=document.getElementById('fluid'), D=disp.getContext('2d');
 const flash=document.getElementById('flash'), stateEl=document.getElementById('state'),
       slider=document.getElementById('slider');
 
-let CW,CH,cx,cy,R,dpr,P=[],arcs=[],cageV=[],cageE=[],octaV=[],octaE=[];
-// jagged energy palette: blues, greens, reds (+ cyan/violet accents)
-const PAL=[[64,150,255],[80,225,235],[88,235,150],[255,92,84],[180,96,255],[120,255,120]];
-
-// connect a vertex set into edges by nearest-neighbour distance
-function buildEdges(V){
-  let min=Infinity;
-  for(let i=0;i<V.length;i++)for(let j=i+1;j<V.length;j++){
-    const d=Math.hypot(V[i][0]-V[j][0],V[i][1]-V[j][1],V[i][2]-V[j][2]); if(d<min)min=d;}
-  const E=[];
-  for(let i=0;i<V.length;i++)for(let j=i+1;j<V.length;j++){
-    const d=Math.hypot(V[i][0]-V[j][0],V[i][1]-V[j][1],V[i][2]-V[j][2]); if(d<min*1.08)E.push([i,j]);}
-  return E;
-}
-const norm=v=>{const l=Math.hypot(v[0],v[1],v[2]);return [v[0]/l,v[1]/l,v[2]/l];};
+let CW,CH,cx,cy,R,dpr,cells=[],tendrils=[];
+// iridescent rim hues
+const HUES=[[255,95,120],[95,230,235],[120,255,150],[225,225,255],[200,150,255],[255,170,90]];
 
 function rot(x,y,z,ax,ay){
   const cz=Math.cos(ay),sz=Math.sin(ay), x1=x*cz+z*sz, z1=-x*sz+z*cz;
@@ -77,126 +65,132 @@ function setup(){
   dpr=Math.min(2,window.devicePixelRatio||1);
   CW=window.innerWidth; CH=window.innerHeight;
   disp.width=CW*dpr; disp.height=CH*dpr; D.setTransform(dpr,0,0,dpr,0,0);
-  cx=CW*0.5; cy=CH*0.44; R=Math.min(CW,CH)*0.18;
-  P=[];
-  for(let i=0;i<240;i++){
-    // point in a spherical shell (unit vector * magnitude)
-    const th=rnd(0,TAU), ph=Math.acos(rnd(-1,1)), m=rnd(0.62,1.02);
-    const ux=Math.sin(ph)*Math.cos(th)*m, uy=Math.cos(ph)*m, uz=Math.sin(ph)*Math.sin(th)*m;
+  cx=CW*0.5; cy=CH*0.43; R=Math.min(CW,CH)*0.19;
+
+  // cells distributed on a sphere (Fibonacci), each a glowing hole in the shell
+  cells=[]; const N=104, GA=Math.PI*(3-Math.sqrt(5));
+  for(let i=0;i<N;i++){
+    const y=1-(i/(N-1))*2, rr=Math.sqrt(Math.max(0,1-y*y)), th=i*GA;
+    const u=[Math.cos(th)*rr, y, Math.sin(th)*rr];
     const a=rnd(0,TAU), rad=rnd(CW*0.25,CW*0.8);
-    P.push({ux,uy,uz, cx0:cx+Math.cos(a)*rad, cy0:cy+Math.sin(a)*rad,
-      col:PAL[(Math.random()*PAL.length)|0], sz:rnd(0.8,2.0), ph:rnd(0,TAU), sp:rnd(.5,1.5)});
+    cells.push({u, size:rnd(0.05,0.15), hue:HUES[(Math.random()*HUES.length)|0],
+      strands:Math.random()<0.5, spike:Math.random()<0.55?rnd(0.14,0.42):0,
+      cx0:cx+Math.cos(a)*rad, cy0:cy+Math.sin(a)*rad, ph:rnd(0,TAU), sp:rnd(.6,1.3)});
   }
-  // outer containment cage: icosahedron (12 verts, 30 edges), faceted shell
-  const ph=(1+Math.sqrt(5))/2;
-  cageV=[[0,1,ph],[0,1,-ph],[0,-1,ph],[0,-1,-ph],[1,ph,0],[1,-ph,0],
-         [-1,ph,0],[-1,-ph,0],[ph,0,1],[ph,0,-1],[-ph,0,1],[-ph,0,-1]].map(norm);
-  cageE=buildEdges(cageV);
-  // inner nucleus: octahedron (6 verts), the bright contained heart
-  octaV=[[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]].map(norm);
-  octaE=buildEdges(octaV);
-  arcs=[];
+  // dendritic tendrils crawling off the shell (the "anomaly spread")
+  tendrils=[];
+  const add=(p,q)=>[p[0]+q[0],p[1]+q[1],p[2]+q[2]];
+  const sc=(p,s)=>[p[0]*s,p[1]*s,p[2]*s];
+  const jit=(d,s)=>{const j=[d[0]+rnd(-s,s),d[1]+rnd(-s,s),d[2]+rnd(-s,s)];
+    const l=Math.hypot(...j)||1;return [j[0]/l,j[1]/l,j[2]/l];};
+  function branch(start,dir,len,depth){
+    if(depth<=0||len<0.05) return;
+    const d2=jit(dir,0.28), end=add(start,sc(d2,len));
+    tendrils.push([start,end,depth]);
+    const n=depth>1?2:1;
+    for(let k=0;k<n;k++) branch(end,d2,len*0.62,depth-1);
+  }
+  for(let r=0;r<6;r++){
+    const a=rnd(0,TAU), ph=Math.acos(rnd(-0.4,0.9));
+    const u=[Math.sin(ph)*Math.cos(a),Math.cos(ph),Math.sin(ph)*Math.sin(a)];
+    branch(u, u, 0.55, 4);
+  }
 }
 addEventListener('resize',setup);
 
-function project(u,ax,ay,scale){
-  const [X,Y,Z]=rot(u[0],u[1],u[2],ax,ay);
-  const persp=1/(1.7-Z*0.5);
-  return {x:cx+X*scale*persp, y:cy+Y*scale*persp, z:Z, persp};
-}
-
 function drawEnergy(t,time){
-  const e=easeIO(t), b=0.5+0.5*Math.sin(time*0.00075);  // slow breath
-  const ax=time*0.00026, ay=time*0.00041;
+  const e=easeIO(t), b=0.5+0.5*Math.sin(time*0.00075);
+  const ax=time*0.00020, ay=time*0.00032;
   D.clearRect(0,0,CW,CH);
   D.fillStyle='#070809'; D.fillRect(0,0,CW,CH);
-  D.globalCompositeOperation='lighter';
 
-  // 1) core glow — intensifies & breathes as it seals
-  const gi=(0.10+0.9*t)*(0.82+0.18*b);
-  const cr=R*(0.9+0.12*b)*lerp(0.5,1,t);
-  const cg=D.createRadialGradient(cx,cy,0,cx,cy,cr*1.8);
-  cg.addColorStop(0,`rgba(220,245,255,${0.7*gi})`);
-  cg.addColorStop(.32,`rgba(70,150,255,${0.4*gi})`);
-  cg.addColorStop(.7,`rgba(40,120,200,${0.12*gi})`);
-  cg.addColorStop(1,'rgba(0,0,0,0)');
-  D.fillStyle=cg; D.beginPath(); D.arc(cx,cy,cr*1.8,0,TAU); D.fill();
+  // luminous bloom behind the core (echoes the bright haze in the reference)
+  const bi=(0.12+0.7*t)*(0.82+0.18*b);
+  const bg=D.createRadialGradient(cx,cy,0,cx,cy,R*2.6);
+  bg.addColorStop(0,`rgba(228,248,240,${0.30*bi})`);
+  bg.addColorStop(.4,`rgba(150,200,210,${0.12*bi})`);
+  bg.addColorStop(1,'rgba(0,0,0,0)');
+  D.fillStyle=bg; D.beginPath(); D.arc(cx,cy,R*2.6,0,TAU); D.fill();
 
-  // 2) energy particles: chaos -> spherical shell, swirling
-  const jit=(1-e)*R*0.9;
-  for(const p of P){
-    const s=project([p.ux,p.uy,p.uz],ax,ay,R);
-    const tx=lerp(p.cx0,s.x,e)+Math.sin(time*0.003*p.sp+p.ph)*jit*0.4;
-    const ty=lerp(p.cy0,s.y,e)+Math.cos(time*0.0026*p.sp+p.ph)*jit*0.4;
-    const depth=(s.z+1)/2;                     // 0 back .. 1 front
-    const fl=0.6+0.4*Math.sin(time*0.012*p.sp+p.ph);   // energetic twinkle
-    const a=(0.25+0.6*depth)*fl*(0.4+0.6*t);
-    const rr=p.sz*(0.7+0.7*depth)*s.persp;
-    D.fillStyle=`rgba(${p.col[0]},${p.col[1]},${p.col[2]},${a})`;
-    D.beginPath(); D.arc(tx,ty,rr,0,TAU); D.fill();
-  }
-
-  // 3) jagged arcs (lightning) — more frequent as it coheres
-  if(Math.random()<lerp(0.02,0.22,t) && arcs.length<7){
-    const A=P[(Math.random()*P.length)|0], Bb=P[(Math.random()*P.length)|0];
-    const pa=project([A.ux,A.uy,A.uz],ax,ay,R), pb=project([Bb.ux,Bb.uy,Bb.uz],ax,ay,R);
-    arcs.push({x1:pa.x,y1:pa.y,x2:pb.x,y2:pb.y,col:PAL[(Math.random()*PAL.length)|0],born:time,life:rnd(120,240),seed:Math.random()*99});
-  }
-  for(let i=arcs.length-1;i>=0;i--){
-    const ar=arcs[i], age=(time-ar.born)/ar.life;
-    if(age>=1){arcs.splice(i,1);continue;}
-    const al=(1-age)*0.9;
-    const dx=ar.x2-ar.x1, dy=ar.y2-ar.y1, segs=6;
-    D.strokeStyle=`rgba(${ar.col[0]},${ar.col[1]},${ar.col[2]},${al})`;
-    D.lineWidth=1.4;
-    D.beginPath(); D.moveTo(ar.x1,ar.y1);
-    for(let k=1;k<segs;k++){
-      const f=k/segs, jx=-dy, jy=dx, n=Math.sin(ar.seed+k*1.7+time*0.02)*((1-Math.abs(f-0.5)*2))*0.18;
-      D.lineTo(ar.x1+dx*f+jx*n, ar.y1+dy*f+jy*n);
+  // dendritic tendrils (behind shell), grow with t
+  if(t>0.45){
+    const ta=clamp((t-0.45)/0.55,0,1);
+    D.lineWidth=1;
+    for(const [s,en,depth] of tendrils){
+      const ps=rot(s[0],s[1],s[2],ax,ay), pe=rot(en[0],en[1],en[2],ax,ay);
+      const x1=cx+ps[0]*R, y1=cy+ps[1]*R, x2=cx+pe[0]*R, y2=cy+pe[1]*R;
+      const dep=(((ps[2]+pe[2])/2)+1)/2;
+      D.strokeStyle=`rgba(200,235,235,${ta*(0.12+0.18*dep)/depth})`;
+      D.beginPath(); D.moveTo(x1,y1); D.lineTo(x2,y2); D.stroke();
     }
-    D.lineTo(ar.x2,ar.y2); D.stroke();
   }
 
-  // 4) inner nucleus (octahedron) — bright contained heart, additive
-  const na=clamp((t-0.4)/0.6,0,1)*(0.6+0.4*b);
-  if(na>0.01){
-    const nr=R*0.34, np=octaV.map(v=>project(v,ax,ay,nr));
-    D.lineWidth=1.4; D.strokeStyle=`rgba(210,245,255,${na})`;
-    D.beginPath(); for(const [a0,a1] of octaE){D.moveTo(np[a0].x,np[a0].y);D.lineTo(np[a1].x,np[a1].y);} D.stroke();
-    const hc=D.createRadialGradient(cx,cy,0,cx,cy,nr*1.7);
-    hc.addColorStop(0,`rgba(255,255,255,${na*0.85})`); hc.addColorStop(1,'rgba(120,200,255,0)');
-    D.fillStyle=hc; D.beginPath(); D.arc(cx,cy,nr*1.7,0,TAU); D.fill();
+  // dark shell base (shaded, lit from upper-left)
+  const shellA=clamp((t-0.15)/0.6,0,1);
+  if(shellA>0.02){
+    const sg=D.createRadialGradient(cx-R*0.35,cy-R*0.4,R*0.1,cx,cy,R*1.05);
+    sg.addColorStop(0,`rgba(58,44,66,${shellA})`);
+    sg.addColorStop(.6,`rgba(28,22,34,${shellA})`);
+    sg.addColorStop(1,`rgba(10,9,14,${shellA})`);
+    D.fillStyle=sg; D.beginPath(); D.arc(cx,cy,R*1.02,0,TAU); D.fill();
   }
 
+  // spikes (sea-urchin) on the silhouette — drawn before cells
   D.globalCompositeOperation='source-over';
-
-  // 5) outer containment cage (dark faceted metal) — closes around the energy as it seals
-  const cageA=clamp((t-0.22)/0.6,0,1);
-  if(cageA>0.01){
-    const cageR=lerp(R*2.5,R*1.2,e);
-    const cp=cageV.map(v=>project(v,ax*0.82,ay*0.82,cageR));
-    const order=cageE.map(ed=>({ed,z:(cp[ed[0]].z+cp[ed[1]].z)/2})).sort((u,v)=>u.z-v.z);
-    for(const {ed} of order){
-      const p0=cp[ed[0]], p1=cp[ed[1]], depth=((cp[ed[0]].z+cp[ed[1]].z)/2+1)/2, av=cageA*(0.3+0.7*depth);
-      D.lineWidth=3.4*p0.persp; D.strokeStyle=`rgba(11,15,21,${Math.min(1,av+0.25)})`;   // dark strut
-      D.beginPath(); D.moveTo(p0.x,p0.y); D.lineTo(p1.x,p1.y); D.stroke();
-      D.lineWidth=1.2; D.strokeStyle=`rgba(120,180,235,${av*0.75})`;                      // emissive rim
-      D.beginPath(); D.moveTo(p0.x,p0.y); D.lineTo(p1.x,p1.y); D.stroke();
-    }
-    for(const p of cp){const depth=(p.z+1)/2;
-      D.fillStyle=`rgba(18,23,31,${Math.min(1,cageA+0.2)})`; D.beginPath(); D.arc(p.x,p.y,3.4*p.persp,0,TAU); D.fill();
-      D.fillStyle=`rgba(150,205,255,${cageA*(0.3+0.5*depth)})`; D.beginPath(); D.arc(p.x,p.y,1.5*p.persp,0,TAU); D.fill();}
+  for(const c of cells){
+    if(!c.spike) continue;
+    const u=rot(c.u[0],c.u[1],c.u[2],ax,ay);
+    if(u[2]>0.4) continue;                      // only rim/side spikes show
+    const bx=cx+u[0]*R, by=cy+u[1]*R, L=c.spike*R*e;
+    const tx=cx+u[0]*(R+L), ty=cy+u[1]*(R+L);
+    D.strokeStyle=`rgba(40,46,58,${shellA*0.9})`; D.lineWidth=2.2;
+    D.beginPath(); D.moveTo(bx,by); D.lineTo(tx,ty); D.stroke();
+    D.fillStyle=`rgba(210,235,240,${shellA*0.5})`; D.beginPath(); D.arc(tx,ty,1.1,0,TAU); D.fill();
   }
+
+  // glowing cells (holes), additive, depth-sorted front
+  D.globalCompositeOperation='lighter';
+  const proj=cells.map(c=>{const u=rot(c.u[0],c.u[1],c.u[2],ax,ay);return {c,u};})
+                  .sort((a,bb)=>a.u[2]-bb.u[2]);
+  for(const {c,u} of proj){
+    if(u[2]<-0.15) continue;                    // hidden on the far side
+    const sx=lerp(c.cx0, cx+u[0]*R, e), sy=lerp(c.cy0, cy+u[1]*R, e);
+    const ang=Math.atan2(sy-cy, sx-cx);
+    const minor=clamp(Math.abs(u[2]),0.16,1);   // foreshorten toward silhouette
+    const cellR=c.size*R*(0.9+0.2*b);
+    const bright=(0.30+0.7*clamp(u[2],0,1))*(0.45+0.55*t);
+    D.save(); D.translate(sx,sy); D.rotate(ang); D.scale(minor,1);
+    const g=D.createRadialGradient(0,0,0,0,0,cellR);
+    g.addColorStop(0,`rgba(255,255,255,${bright})`);
+    g.addColorStop(.62,`rgba(225,240,255,${bright*0.45})`);
+    g.addColorStop(1,'rgba(255,255,255,0)');
+    D.fillStyle=g; D.beginPath(); D.arc(0,0,cellR,0,TAU); D.fill();
+    // iridescent chromatic rim
+    D.lineWidth=1.3;
+    D.strokeStyle=`rgba(255,90,120,${bright*0.5})`; D.beginPath(); D.arc(1.4,0,cellR*0.94,0,TAU); D.stroke();
+    D.strokeStyle=`rgba(90,225,235,${bright*0.5})`; D.beginPath(); D.arc(-1.4,0,cellR*0.94,0,TAU); D.stroke();
+    D.strokeStyle=`rgba(${c.hue[0]},${c.hue[1]},${c.hue[2]},${bright*0.6})`;
+    D.beginPath(); D.arc(0,0,cellR*0.94,0,TAU); D.stroke();
+    // web strands inside the larger front cells
+    if(c.strands && u[2]>0.45){
+      D.strokeStyle=`rgba(255,255,255,${bright*0.35})`; D.lineWidth=0.8;
+      for(let k=-1;k<=1;k++){D.beginPath();
+        D.moveTo(-cellR*0.8,k*cellR*0.3);
+        D.quadraticCurveTo(0,-k*cellR*0.5, cellR*0.8,k*cellR*0.3); D.stroke();}
+    }
+    D.restore();
+  }
+  D.globalCompositeOperation='source-over';
 }
 
 /* radial hold-dial */
 function drawDial(k){
   if(k<=0) return;
-  const axx=cx, ayy=cy+R+CH*0.16, Rd=44, A0=Math.PI*0.75, A1=Math.PI*2.25;
+  const axx=cx, ayy=cy+R+CH*0.15, Rd=44, A0=Math.PI*0.75, A1=Math.PI*2.25;
   for(let i=0;i<=28;i++){const a=lerp(A0,A1,i/28), on=i/28<=k,
     r1=Rd+(i%7===0?9:5), x1=axx+Math.cos(a)*Rd, y1=ayy+Math.sin(a)*Rd,
     x2=axx+Math.cos(a)*r1, y2=ayy+Math.sin(a)*r1;
-    D.strokeStyle=on?'rgba(190,240,255,.9)':'rgba(154,161,172,.28)'; D.lineWidth=1.4;
+    D.strokeStyle=on?'rgba(210,250,240,.9)':'rgba(154,161,172,.28)'; D.lineWidth=1.4;
     D.beginPath();D.moveTo(x1,y1);D.lineTo(x2,y2);D.stroke();}
   const ka=lerp(A0,A1,k), kx=axx+Math.cos(ka)*Rd, ky=ayy+Math.sin(ka)*Rd;
   D.fillStyle='#fff';D.beginPath();D.arc(kx,ky,7,0,TAU);D.fill();
