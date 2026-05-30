@@ -5,21 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 <meta name="theme-color" content="#0B0D11" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
-<title>Monolith — Liquid Figure</title>
+<title>Monolith — Backlit Figure</title>
 <style>
 :root{--bg:#0B0D11;--primary:#F4F4F2;--secondary:#9AA1AC;--accent:#F5F0E8;
   --font:-apple-system,"SF Pro Display","Inter","Helvetica Neue",system-ui,sans-serif;}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--primary);font-family:var(--font);
   -webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%;touch-action:none;overscroll-behavior:none;}
-body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
-  background:radial-gradient(70% 50% at 50% 40%,rgba(110,135,175,.16),transparent 70%),
-             radial-gradient(120% 70% at 50% 120%,rgba(0,0,0,.5),transparent 60%);}
 .top{position:fixed;z-index:4;top:0;left:0;right:0;display:flex;justify-content:space-between;
   padding:max(18px,env(safe-area-inset-top)) 24px 0;font-size:12px;letter-spacing:.2em;color:var(--secondary);}
 .title{position:fixed;left:24px;top:max(74px,calc(env(safe-area-inset-top) + 56px));z-index:4;}
 .title .k{font-size:12px;letter-spacing:.18em;color:var(--secondary);text-transform:uppercase;}
-.title .h{font-weight:300;font-size:clamp(34px,9vw,48px);letter-spacing:-.02em;line-height:1;margin-top:6px;}
+.title .h{font-weight:300;font-size:clamp(34px,9vw,48px);letter-spacing:-.02em;line-height:1;margin-top:6px;
+  text-shadow:0 1px 30px rgba(0,0,0,.6);}
 #fluid{position:fixed;inset:0;z-index:1;width:100%;height:100%;display:block;}
 .statelabel{position:fixed;left:0;right:0;bottom:176px;z-index:4;text-align:center;
   font-size:11px;letter-spacing:.42em;text-transform:uppercase;color:var(--secondary);transition:color .3s;}
@@ -53,92 +51,112 @@ const disp=document.getElementById('fluid'), D=disp.getContext('2d');
 const flash=document.getElementById('flash'), stateEl=document.getElementById('state'),
       slider=document.getElementById('slider');
 
-let CW,CH,cx,cy,dpr,buf,B,bW,bH,blobs=[],S=0.5,glowY=0;
+let CW,CH,cx,cy,dpr,buf,B,fg,FG,bW,bH,blobs=[],S=0.5;
 
-// pick a point inside a capsule (segment A-B with radius r)
 function ptInCapsule(ax,ay,bx,by,r){
   const tt=Math.random(), x=lerp(ax,bx,tt), y=lerp(ay,by,tt),
         a=rnd(0,TAU), rr=Math.sqrt(Math.random())*r;
   return {x:x+Math.cos(a)*rr, y:y+Math.sin(a)*rr};
 }
-
 function setup(){
   dpr=Math.min(2,window.devicePixelRatio||1);
   CW=window.innerWidth; CH=window.innerHeight;
   disp.width=CW*dpr; disp.height=CH*dpr; D.setTransform(dpr,0,0,dpr,0,0);
-  buf=document.createElement('canvas'); bW=Math.round(CW*S); bH=Math.round(CH*S);
-  buf.width=bW; buf.height=bH; B=buf.getContext('2d');
+  bW=Math.round(CW*S); bH=Math.round(CH*S);
+  buf=document.createElement('canvas'); buf.width=bW; buf.height=bH; B=buf.getContext('2d');
+  fg=document.createElement('canvas'); fg.width=bW; fg.height=bH; FG=fg.getContext('2d');
 
   // ── parametric human figure (display coords) ──
-  const FH=CH*0.56; cx=CW*0.5; cy=CH*0.44;
-  const headY=cy-FH*0.5, feetY=cy+FH*0.5, rHead=FH*0.085,
-        shY=headY+rHead*1.7, hipY=shY+FH*0.30, shH=FH*0.17;
-  glowY=cy;
+  const FH=CH*0.58; cx=CW*0.5; cy=CH*0.45;
+  const headY=cy-FH*0.5, feetY=cy+FH*0.5, rHead=FH*0.082,
+        shY=headY+rHead*1.7, hipY=shY+FH*0.30, shH=FH*0.165;
   const parts=[ // ax,ay,bx,by,radius,count
-    [cx,headY, cx,headY, rHead,           8],
-    [cx-shH,shY, cx+shH,shY, FH*0.055,    10],   // shoulders
-    [cx,shY, cx,hipY, FH*0.125,           22],   // torso
-    [cx-shH*0.95,shY, cx-shH*1.05,hipY+FH*0.05, FH*0.04, 8],  // left arm
-    [cx+shH*0.95,shY, cx+shH*1.05,hipY+FH*0.05, FH*0.04, 8],  // right arm
-    [cx-FH*0.05,hipY, cx-FH*0.055,feetY, FH*0.05, 10],        // left leg
-    [cx+FH*0.05,hipY, cx+FH*0.055,feetY, FH*0.05, 10],        // right leg
+    [cx,headY, cx,headY, rHead,           9],
+    [cx-shH,shY, cx+shH,shY, FH*0.05,    12],   // shoulders
+    [cx,shY+FH*0.01, cx,hipY, FH*0.125,  30],   // torso
+    [cx-shH*0.92,shY, cx-shH*1.02,hipY+FH*0.04, FH*0.038, 11],  // left arm
+    [cx+shH*0.92,shY, cx+shH*1.02,hipY+FH*0.04, FH*0.038, 11],  // right arm
+    [cx-FH*0.05,hipY, cx-FH*0.058,feetY, FH*0.05, 14],          // left leg
+    [cx+FH*0.05,hipY, cx+FH*0.058,feetY, FH*0.05, 14],          // right leg
   ];
   blobs=[];
   for(const [ax,ay,bx,by,r,n] of parts){
     for(let i=0;i<n;i++){
-      const t=ptInCapsule(ax,ay,bx,by,r);
-      const a=rnd(0,TAU), rad=rnd(CW*0.2,CW*0.75);
-      blobs.push({
-        tx:t.x*S, ty:t.y*S,
+      const tg=ptInCapsule(ax,ay,bx,by,r);
+      const a=rnd(0,TAU), rad=rnd(CW*0.2,CW*0.7);
+      blobs.push({tx:tg.x*S, ty:tg.y*S,
         x:(cx+Math.cos(a)*rad)*S, y:(cy+Math.sin(a)*rad)*S,
-        vx:0,vy:0, r:rnd(9,16)*(r>FH*0.1?1.25:1), ph:rnd(0,TAU), sp:rnd(.6,1.3)
-      });
+        vx:0,vy:0, r:rnd(0.62,0.95)*r*S, ph:rnd(0,TAU), sp:rnd(.6,1.2)});
     }
   }
 }
 addEventListener('resize',setup);
 
 function drawFluid(t,time){
-  const turb=lerp(1.05,0.03,t), attr=lerp(0.0009,0.085,t), damp=0.86;
+  const turb=lerp(0.8,0.02,t), attr=lerp(0.001,0.085,t), damp=0.85;
+
+  // 1) figure mask (white) into low-res buffer
   B.clearRect(0,0,bW,bH);
-  B.globalCompositeOperation='lighter';
-  B.filter=`blur(${lerp(3,1,t)}px)`;                 // far less blur than before
-  const r0=Math.round(lerp(150,247,t)), g0=Math.round(lerp(172,241,t)), b0=Math.round(lerp(210,233,t));
+  B.globalCompositeOperation='source-over';
+  B.filter=`blur(${lerp(3.4,1.8,t)}px)`;
   for(const p of blobs){
-    const nx=Math.sin(p.y*0.05+time*0.0006*p.sp)+Math.cos(p.x*0.04-time*0.0005);
-    const ny=Math.cos(p.x*0.05-time*0.0006*p.sp)+Math.sin(p.y*0.04+time*0.0005);
-    let fx=nx*turb, fy=ny*turb-0.03*turb;
+    const nx=Math.sin(p.y*0.05+time*0.0005*p.sp)+Math.cos(p.x*0.04-time*0.0004);
+    const ny=Math.cos(p.x*0.05-time*0.0005*p.sp)+Math.sin(p.y*0.04+time*0.0004);
+    let fx=nx*turb, fy=ny*turb-0.02*turb;
     fx+=(p.tx-p.x)*attr; fy+=(p.ty-p.y)*attr;
-    p.vx=(p.vx+fx)*damp; p.vy=(p.vy+fy)*damp;
-    p.x+=p.vx; p.y+=p.vy;
-    const rr=p.r*(1+0.08*Math.sin(time*0.001*p.sp+p.ph))*(1-0.12*t);
+    p.vx=(p.vx+fx)*damp; p.vy=(p.vy+fy)*damp; p.x+=p.vx; p.y+=p.vy;
+    const rr=p.r*(1+0.06*Math.sin(time*0.001*p.sp+p.ph));
     const g=B.createRadialGradient(p.x,p.y,0,p.x,p.y,rr);
-    // tighter, harder-edged gradient => liquid (mercury) instead of smoke
-    g.addColorStop(0,`rgba(${r0},${g0},${b0},${0.78})`);
-    g.addColorStop(.72,`rgba(${r0-26},${g0-22},${b0-12},${0.5})`);
-    g.addColorStop(1,'rgba(0,0,0,0)');
+    g.addColorStop(0,'rgba(255,255,255,0.95)');
+    g.addColorStop(.7,'rgba(255,255,255,0.55)');
+    g.addColorStop(1,'rgba(255,255,255,0)');
     B.fillStyle=g; B.beginPath(); B.arc(p.x,p.y,rr,0,TAU); B.fill();
   }
-  B.filter='none'; B.globalCompositeOperation='source-over';
+  B.filter='none';
+  // 2) dark figure = mask stencilled with near-black
+  FG.clearRect(0,0,bW,bH); FG.globalCompositeOperation='source-over';
+  FG.drawImage(buf,0,0);
+  FG.globalCompositeOperation='source-in';
+  FG.fillStyle='#05060a'; FG.fillRect(0,0,bW,bH);
+  FG.globalCompositeOperation='source-over';
 
+  // 3) compose display: bg -> light pool -> bright halo -> dark figure -> vignette
   D.clearRect(0,0,CW,CH);
-  // soft glow behind the figure as it coheres -> permanence
-  if(t>0.5){const a=(t-0.5)/0.5, gg=D.createRadialGradient(cx,glowY,8,cx,glowY,CH*0.34);
-    gg.addColorStop(0,`rgba(245,240,232,${0.10*a})`); gg.addColorStop(1,'transparent');
-    D.fillStyle=gg; D.fillRect(0,0,CW,CH);}
-  // contrast pass turns the additive field into connected liquid with crisp edges
-  D.imageSmoothingEnabled=true;
-  D.filter=`blur(${lerp(1.6,0.4,t)}px) contrast(${lerp(1.5,2.2,t)})`;
-  if(t>0.85){ D.save(); D.shadowColor='rgba(245,240,232,'+(t-0.85)/0.15*0.6+')'; D.shadowBlur=26*((t-0.85)/0.15); }
+  D.fillStyle='#0B0D11'; D.fillRect(0,0,CW,CH);
+
+  // light pool (the backlight) — brightens as the figure coheres
+  const pool=D.createRadialGradient(cx,cy-CH*0.04,8,cx,cy,CH*0.46);
+  const lp=lerp(0.30,0.85,t);
+  pool.addColorStop(0,`rgba(214,224,238,${lp})`);
+  pool.addColorStop(.4,`rgba(150,168,198,${lp*0.5})`);
+  pool.addColorStop(1,'transparent');
+  D.fillStyle=pool; D.fillRect(0,0,CW,CH);
+
+  // halo / rim — the figure mask, white, heavily blurred, added behind
+  D.save();
+  D.globalCompositeOperation='lighter';
+  D.filter=`blur(${lerp(26,13,t)}px)`;
+  D.globalAlpha=lerp(0.10,0.6,t);
   D.drawImage(buf,0,0,CW,CH);
-  if(t>0.85) D.restore();
-  D.filter='none';
+  D.restore();
+
+  // dark soft-edged figure over the light -> backlit silhouette
+  D.save();
+  D.filter=`blur(${lerp(9,4,t)}px)`;
+  D.globalAlpha=lerp(0.45,0.98,t);
+  D.drawImage(fg,0,0,CW,CH);
+  D.restore();
+
+  // vignette to focus the light pool and darken the surroundings
+  const vg=D.createRadialGradient(cx,cy,CH*0.16,cx,cy,CH*0.72);
+  vg.addColorStop(0,'transparent'); vg.addColorStop(1,'rgba(7,8,12,0.92)');
+  D.fillStyle=vg; D.fillRect(0,0,CW,CH);
 }
 
 /* radial hold-dial echoing the reference control */
 function drawDial(k){
   if(k<=0) return;
-  const ax=cx, ay=CH*0.44+CH*0.30, R=44, A0=Math.PI*0.75, A1=Math.PI*2.25;
+  const ax=cx, ay=CH*0.45+CH*0.31, R=44, A0=Math.PI*0.75, A1=Math.PI*2.25;
   for(let i=0;i<=28;i++){const a=lerp(A0,A1,i/28), on=i/28<=k,
     r1=R+(i%7===0?9:5), x1=ax+Math.cos(a)*R, y1=ay+Math.sin(a)*R,
     x2=ax+Math.cos(a)*r1, y2=ay+Math.sin(a)*r1;
