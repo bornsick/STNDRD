@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-<meta name="theme-color" content="#0B0D11" />
+<meta name="theme-color" content="#070809" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
-<title>Monolith — Backlit Figure</title>
+<title>Monolith — Energy Core</title>
 <style>
-:root{--bg:#0B0D11;--primary:#F4F4F2;--secondary:#9AA1AC;--accent:#F5F0E8;
+:root{--bg:#070809;--primary:#F4F4F2;--secondary:#9AA1AC;--accent:#F5F0E8;
   --font:-apple-system,"SF Pro Display","Inter","Helvetica Neue",system-ui,sans-serif;}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--primary);font-family:var(--font);
@@ -17,7 +17,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--primary);font-fa
 .title{position:fixed;left:24px;top:max(74px,calc(env(safe-area-inset-top) + 56px));z-index:4;}
 .title .k{font-size:12px;letter-spacing:.18em;color:var(--secondary);text-transform:uppercase;}
 .title .h{font-weight:300;font-size:clamp(34px,9vw,48px);letter-spacing:-.02em;line-height:1;margin-top:6px;
-  text-shadow:0 1px 30px rgba(0,0,0,.6);}
+  text-shadow:0 1px 30px rgba(0,0,0,.7);}
 #fluid{position:fixed;inset:0;z-index:1;width:100%;height:100%;display:block;}
 .statelabel{position:fixed;left:0;right:0;bottom:176px;z-index:4;text-align:center;
   font-size:11px;letter-spacing:.42em;text-transform:uppercase;color:var(--secondary);transition:color .3s;}
@@ -28,7 +28,7 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--primary);font-fa
 .slider::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 1px rgba(0,0,0,.3);}
 .scaleline{display:flex;justify-content:space-between;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:rgba(154,161,172,.5);}
 .hint{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:rgba(154,161,172,.6);text-align:center;}
-.seal-flash{position:fixed;inset:0;background:var(--accent);z-index:9;opacity:0;pointer-events:none;transition:opacity .12s;mix-blend-mode:overlay;}
+.seal-flash{position:fixed;inset:0;background:#bfe9ff;z-index:9;opacity:0;pointer-events:none;transition:opacity .12s;mix-blend-mode:screen;}
 </style>
 </head>
 <body>
@@ -40,143 +40,138 @@ html,body{margin:0;height:100%;background:var(--bg);color:var(--primary);font-fa
 <div class="panel">
   <input class="slider" id="slider" type="range" min="0" max="1000" value="0">
   <div class="scaleline"><span>Deploying</span><span>Stabilizing</span><span>Open</span><span>Sealed</span></div>
-  <div class="hint">drag to scrub formation · hold the figure to ship</div>
+  <div class="hint">drag to scrub formation · hold the core to ship</div>
 </div>
 
 <script>
 const TAU=Math.PI*2, rnd=(a,b)=>a+Math.random()*(b-a),
-      lerp=(a,b,k)=>a+(b-a)*k, clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+      lerp=(a,b,k)=>a+(b-a)*k, clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),
+      easeIO=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;
 
 const disp=document.getElementById('fluid'), D=disp.getContext('2d');
 const flash=document.getElementById('flash'), stateEl=document.getElementById('state'),
       slider=document.getElementById('slider');
 
-let CW,CH,cx,cy,dpr,buf,B,fg,FG,bW,bH,blobs=[],S=0.5;
+let CW,CH,cx,cy,R,dpr,P=[],arcs=[],cubeV=[],cubeE=[];
+// jagged energy palette: blues, greens, reds (+ cyan/violet accents)
+const PAL=[[64,150,255],[80,225,235],[88,235,150],[255,92,84],[180,96,255],[120,255,120]];
 
-function ptInCapsule(ax,ay,bx,by,r){
-  const tt=Math.random(), x=lerp(ax,bx,tt), y=lerp(ay,by,tt),
-        a=rnd(0,TAU), rr=Math.sqrt(Math.random())*r;
-  return {x:x+Math.cos(a)*rr, y:y+Math.sin(a)*rr};
+function rot(x,y,z,ax,ay){
+  const cz=Math.cos(ay),sz=Math.sin(ay), x1=x*cz+z*sz, z1=-x*sz+z*cz;
+  const cxx=Math.cos(ax),sxx=Math.sin(ax), y1=y*cxx-z1*sxx, z2=y*sxx+z1*cxx;
+  return [x1,y1,z2];
 }
 function setup(){
   dpr=Math.min(2,window.devicePixelRatio||1);
   CW=window.innerWidth; CH=window.innerHeight;
   disp.width=CW*dpr; disp.height=CH*dpr; D.setTransform(dpr,0,0,dpr,0,0);
-  bW=Math.round(CW*S); bH=Math.round(CH*S);
-  buf=document.createElement('canvas'); buf.width=bW; buf.height=bH; B=buf.getContext('2d');
-  fg=document.createElement('canvas'); fg.width=bW; fg.height=bH; FG=fg.getContext('2d');
-
-  // ── parametric human figure (display coords) ──
-  const FH=CH*0.58; cx=CW*0.5; cy=CH*0.45;
-  const headY=cy-FH*0.5, feetY=cy+FH*0.5, rHead=FH*0.082,
-        shY=headY+rHead*1.7, hipY=shY+FH*0.30, shH=FH*0.165;
-  const parts=[ // ax,ay,bx,by,radius,count
-    [cx,headY, cx,headY, rHead,           9],
-    [cx-shH,shY, cx+shH,shY, FH*0.05,    12],   // shoulders
-    [cx,shY+FH*0.01, cx,hipY, FH*0.125,  30],   // torso
-    [cx-shH*0.92,shY, cx-shH*1.02,hipY+FH*0.04, FH*0.038, 11],  // left arm
-    [cx+shH*0.92,shY, cx+shH*1.02,hipY+FH*0.04, FH*0.038, 11],  // right arm
-    [cx-FH*0.05,hipY, cx-FH*0.058,feetY, FH*0.05, 14],          // left leg
-    [cx+FH*0.05,hipY, cx+FH*0.058,feetY, FH*0.05, 14],          // right leg
-  ];
-  // abstract organic mass (Synvy-like) — the other end of the morph
-  const ab=[[cx,cy-FH*0.08,FH*0.20],[cx+FH*0.11,cy+FH*0.06,FH*0.17],[cx-FH*0.10,cy+FH*0.16,FH*0.15]];
-  const ptAbstract=()=>{const c=ab[Math.floor(Math.random()*ab.length)],
-    a=rnd(0,TAU), r=Math.sqrt(Math.random())*c[2];
-    return {x:c[0]+Math.cos(a)*r, y:c[1]+Math.sin(a)*r};};
-  blobs=[];
-  for(const [ax,ay,bx,by,r,n] of parts){
-    for(let i=0;i<n;i++){
-      const tg=ptInCapsule(ax,ay,bx,by,r), ta=ptAbstract();
-      const a=rnd(0,TAU), rad=rnd(CW*0.2,CW*0.7);
-      blobs.push({tHx:tg.x*S, tHy:tg.y*S, tAx:ta.x*S, tAy:ta.y*S,
-        x:(cx+Math.cos(a)*rad)*S, y:(cy+Math.sin(a)*rad)*S,
-        vx:0,vy:0, r:rnd(0.62,0.95)*r*S, ph:rnd(0,TAU), sp:rnd(.6,1.2)});
-    }
+  cx=CW*0.5; cy=CH*0.44; R=Math.min(CW,CH)*0.18;
+  P=[];
+  for(let i=0;i<240;i++){
+    // point in a spherical shell (unit vector * magnitude)
+    const th=rnd(0,TAU), ph=Math.acos(rnd(-1,1)), m=rnd(0.62,1.02);
+    const ux=Math.sin(ph)*Math.cos(th)*m, uy=Math.cos(ph)*m, uz=Math.sin(ph)*Math.sin(th)*m;
+    const a=rnd(0,TAU), rad=rnd(CW*0.25,CW*0.8);
+    P.push({ux,uy,uz, cx0:cx+Math.cos(a)*rad, cy0:cy+Math.sin(a)*rad,
+      col:PAL[(Math.random()*PAL.length)|0], sz:rnd(0.8,2.0), ph:rnd(0,TAU), sp:rnd(.5,1.5)});
   }
+  // arcane core: a cube (8 verts, 12 edges)
+  cubeV=[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],[-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]];
+  cubeE=[[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
+  arcs=[];
 }
 addEventListener('resize',setup);
 
-function drawFluid(t,time){
-  const turb=lerp(0.5,0.02,t), attr=lerp(0.0016,0.09,t), damp=0.87;
-  // one slow breath (~10s) drives everything. Exhale -> it resolves into the
-  // clear silhouette; inhale -> it softens toward abstraction. Never formless.
-  const b=0.5+0.5*Math.sin(time*0.00063);
-  const mm=clamp(0.40*b,0,1);
-  const ang=time*0.00006, ca=Math.cos(ang), sa=Math.sin(ang), CXS=cx*S, CYS=cy*S;
-
-  // 1) figure mask (white) into low-res buffer
-  B.clearRect(0,0,bW,bH);
-  B.globalCompositeOperation='source-over';
-  B.filter=`blur(${lerp(3.4,1.8,t)}px)`;
-  for(const p of blobs){
-    // morphed target: human <-> slowly-swirling abstract mass
-    const dax=p.tAx-CXS, day=p.tAy-CYS,
-          rax=CXS+dax*ca-day*sa, ray=CYS+dax*sa+day*ca,
-          mtx=lerp(p.tHx,rax,mm), mty=lerp(p.tHy,ray,mm);
-    const nx=Math.sin(p.y*0.05+time*0.0005*p.sp)+Math.cos(p.x*0.04-time*0.0004);
-    const ny=Math.cos(p.x*0.05-time*0.0005*p.sp)+Math.sin(p.y*0.04+time*0.0004);
-    let fx=nx*turb, fy=ny*turb-0.02*turb;
-    fx+=(mtx-p.x)*attr; fy+=(mty-p.y)*attr;
-    p.vx=(p.vx+fx)*damp; p.vy=(p.vy+fy)*damp; p.x+=p.vx; p.y+=p.vy;
-    const rr=p.r*(1+0.06*Math.sin(time*0.001*p.sp+p.ph))*(0.94+0.12*b);
-    const g=B.createRadialGradient(p.x,p.y,0,p.x,p.y,rr);
-    g.addColorStop(0,'rgba(255,255,255,0.95)');
-    g.addColorStop(.7,'rgba(255,255,255,0.55)');
-    g.addColorStop(1,'rgba(255,255,255,0)');
-    B.fillStyle=g; B.beginPath(); B.arc(p.x,p.y,rr,0,TAU); B.fill();
-  }
-  B.filter='none';
-  // 2) dark figure = mask stencilled with near-black
-  FG.clearRect(0,0,bW,bH); FG.globalCompositeOperation='source-over';
-  FG.drawImage(buf,0,0);
-  FG.globalCompositeOperation='source-in';
-  FG.fillStyle='#05060a'; FG.fillRect(0,0,bW,bH);
-  FG.globalCompositeOperation='source-over';
-
-  // 3) compose display: bg -> light pool -> bright halo -> dark figure -> vignette
-  D.clearRect(0,0,CW,CH);
-  D.fillStyle='#0B0D11'; D.fillRect(0,0,CW,CH);
-
-  // light pool (the backlight) — brightens as the figure coheres
-  const pool=D.createRadialGradient(cx,cy-CH*0.04,8,cx,cy,CH*0.46);
-  const lp=lerp(0.30,0.85,t)*(0.80+0.36*b);
-  pool.addColorStop(0,`rgba(214,224,238,${lp})`);
-  pool.addColorStop(.4,`rgba(150,168,198,${lp*0.5})`);
-  pool.addColorStop(1,'transparent');
-  D.fillStyle=pool; D.fillRect(0,0,CW,CH);
-
-  // halo / rim — the figure mask, white, heavily blurred, added behind
-  D.save();
-  D.globalCompositeOperation='lighter';
-  D.filter=`blur(${lerp(26,13,t)}px)`;
-  D.globalAlpha=lerp(0.10,0.6,t)*(0.78+0.42*b);
-  D.drawImage(buf,0,0,CW,CH);
-  D.restore();
-
-  // dark soft-edged figure over the light -> backlit silhouette
-  D.save();
-  D.filter=`blur(${lerp(9,4,t)}px)`;
-  D.globalAlpha=lerp(0.45,0.98,t);
-  D.drawImage(fg,0,0,CW,CH);
-  D.restore();
-
-  // vignette to focus the light pool and darken the surroundings
-  const vg=D.createRadialGradient(cx,cy,CH*0.16,cx,cy,CH*0.72);
-  vg.addColorStop(0,'transparent'); vg.addColorStop(1,'rgba(7,8,12,0.92)');
-  D.fillStyle=vg; D.fillRect(0,0,CW,CH);
+function project(u,ax,ay,scale){
+  const [X,Y,Z]=rot(u[0],u[1],u[2],ax,ay);
+  const persp=1/(1.7-Z*0.5);
+  return {x:cx+X*scale*persp, y:cy+Y*scale*persp, z:Z, persp};
 }
 
-/* radial hold-dial echoing the reference control */
+function drawEnergy(t,time){
+  const e=easeIO(t), b=0.5+0.5*Math.sin(time*0.00075);  // slow breath
+  const ax=time*0.00026, ay=time*0.00041;
+  D.clearRect(0,0,CW,CH);
+  D.fillStyle='#070809'; D.fillRect(0,0,CW,CH);
+  D.globalCompositeOperation='lighter';
+
+  // 1) core glow — intensifies & breathes as it seals
+  const gi=(0.10+0.9*t)*(0.82+0.18*b);
+  const cr=R*(0.9+0.12*b)*lerp(0.5,1,t);
+  const cg=D.createRadialGradient(cx,cy,0,cx,cy,cr*1.8);
+  cg.addColorStop(0,`rgba(220,245,255,${0.7*gi})`);
+  cg.addColorStop(.32,`rgba(70,150,255,${0.4*gi})`);
+  cg.addColorStop(.7,`rgba(40,120,200,${0.12*gi})`);
+  cg.addColorStop(1,'rgba(0,0,0,0)');
+  D.fillStyle=cg; D.beginPath(); D.arc(cx,cy,cr*1.8,0,TAU); D.fill();
+
+  // 2) energy particles: chaos -> spherical shell, swirling
+  const jit=(1-e)*R*0.9;
+  for(const p of P){
+    const s=project([p.ux,p.uy,p.uz],ax,ay,R);
+    const tx=lerp(p.cx0,s.x,e)+Math.sin(time*0.003*p.sp+p.ph)*jit*0.4;
+    const ty=lerp(p.cy0,s.y,e)+Math.cos(time*0.0026*p.sp+p.ph)*jit*0.4;
+    const depth=(s.z+1)/2;                     // 0 back .. 1 front
+    const fl=0.6+0.4*Math.sin(time*0.012*p.sp+p.ph);   // energetic twinkle
+    const a=(0.25+0.6*depth)*fl*(0.4+0.6*t);
+    const rr=p.sz*(0.7+0.7*depth)*s.persp;
+    D.fillStyle=`rgba(${p.col[0]},${p.col[1]},${p.col[2]},${a})`;
+    D.beginPath(); D.arc(tx,ty,rr,0,TAU); D.fill();
+  }
+
+  // 3) jagged arcs (lightning) — more frequent as it coheres
+  if(Math.random()<lerp(0.02,0.22,t) && arcs.length<7){
+    const A=P[(Math.random()*P.length)|0], Bb=P[(Math.random()*P.length)|0];
+    const pa=project([A.ux,A.uy,A.uz],ax,ay,R), pb=project([Bb.ux,Bb.uy,Bb.uz],ax,ay,R);
+    arcs.push({x1:pa.x,y1:pa.y,x2:pb.x,y2:pb.y,col:PAL[(Math.random()*PAL.length)|0],born:time,life:rnd(120,240),seed:Math.random()*99});
+  }
+  for(let i=arcs.length-1;i>=0;i--){
+    const ar=arcs[i], age=(time-ar.born)/ar.life;
+    if(age>=1){arcs.splice(i,1);continue;}
+    const al=(1-age)*0.9;
+    const dx=ar.x2-ar.x1, dy=ar.y2-ar.y1, segs=6;
+    D.strokeStyle=`rgba(${ar.col[0]},${ar.col[1]},${ar.col[2]},${al})`;
+    D.lineWidth=1.4;
+    D.beginPath(); D.moveTo(ar.x1,ar.y1);
+    for(let k=1;k<segs;k++){
+      const f=k/segs, jx=-dy, jy=dx, n=Math.sin(ar.seed+k*1.7+time*0.02)*((1-Math.abs(f-0.5)*2))*0.18;
+      D.lineTo(ar.x1+dx*f+jx*n, ar.y1+dy*f+jy*n);
+    }
+    D.lineTo(ar.x2,ar.y2); D.stroke();
+  }
+
+  // 4) arcane cube core — the understandable final form; emerges as it seals
+  const ca=clamp((t-0.45)/0.55,0,1)*(0.55+0.45*b);
+  if(ca>0.01){
+    const cs=R*0.5, pts=cubeV.map(v=>project([v[0]*cs/R,v[1]*cs/R,v[2]*cs/R],ax,ay,R));
+    // edges (faint wide glow + bright thin)
+    for(const pass of [[3.2,0.18],[1.3,0.9]]){
+      D.lineWidth=pass[0]; D.strokeStyle=`rgba(190,240,255,${ca*pass[1]})`;
+      D.beginPath();
+      for(const [a0,a1] of cubeE){D.moveTo(pts[a0].x,pts[a0].y);D.lineTo(pts[a1].x,pts[a1].y);}
+      D.stroke();
+    }
+    // vertices
+    for(const p of pts){D.fillStyle=`rgba(225,250,255,${ca})`;D.beginPath();D.arc(p.x,p.y,1.8,0,TAU);D.fill();}
+    // hot centre
+    const hc=D.createRadialGradient(cx,cy,0,cx,cy,R*0.5);
+    hc.addColorStop(0,`rgba(255,255,255,${ca*0.8})`); hc.addColorStop(1,'rgba(120,200,255,0)');
+    D.fillStyle=hc; D.beginPath(); D.arc(cx,cy,R*0.5,0,TAU); D.fill();
+  }
+
+  D.globalCompositeOperation='source-over';
+}
+
+/* radial hold-dial */
 function drawDial(k){
   if(k<=0) return;
-  const ax=cx, ay=CH*0.45+CH*0.31, R=44, A0=Math.PI*0.75, A1=Math.PI*2.25;
+  const axx=cx, ayy=cy+R+CH*0.16, Rd=44, A0=Math.PI*0.75, A1=Math.PI*2.25;
   for(let i=0;i<=28;i++){const a=lerp(A0,A1,i/28), on=i/28<=k,
-    r1=R+(i%7===0?9:5), x1=ax+Math.cos(a)*R, y1=ay+Math.sin(a)*R,
-    x2=ax+Math.cos(a)*r1, y2=ay+Math.sin(a)*r1;
-    D.strokeStyle=on?'rgba(245,240,232,.85)':'rgba(154,161,172,.28)'; D.lineWidth=1.4;
+    r1=Rd+(i%7===0?9:5), x1=axx+Math.cos(a)*Rd, y1=ayy+Math.sin(a)*Rd,
+    x2=axx+Math.cos(a)*r1, y2=ayy+Math.sin(a)*r1;
+    D.strokeStyle=on?'rgba(190,240,255,.9)':'rgba(154,161,172,.28)'; D.lineWidth=1.4;
     D.beginPath();D.moveTo(x1,y1);D.lineTo(x2,y2);D.stroke();}
-  const ka=lerp(A0,A1,k), kx=ax+Math.cos(ka)*R, ky=ay+Math.sin(ka)*R;
+  const ka=lerp(A0,A1,k), kx=axx+Math.cos(ka)*Rd, ky=ayy+Math.sin(ka)*Rd;
   D.fillStyle='#fff';D.beginPath();D.arc(kx,ky,7,0,TAU);D.fill();
 }
 
@@ -186,11 +181,11 @@ const stateName=v=>v>=.999?'SEALED · v1.5.0':v>=.7?'GATE OPEN':v>=.34?'STABILIZ
 const vibe=p=>{try{navigator.vibrate&&navigator.vibrate(p);}catch(e){}};
 let actx=null;
 function sealSound(){try{actx=actx||new(window.AudioContext||window.webkitAudioContext)();
-  const tt=actx.currentTime,o=actx.createOscillator(),g=actx.createGain();o.type='sine';
-  o.frequency.setValueAtTime(150,tt);o.frequency.exponentialRampToValueAtTime(40,tt+.24);
-  g.gain.setValueAtTime(.0001,tt);g.gain.exponentialRampToValueAtTime(.45,tt+.012);
-  g.gain.exponentialRampToValueAtTime(.0001,tt+.55);o.connect(g).connect(actx.destination);
-  o.start(tt);o.stop(tt+.6);}catch(e){}}
+  const tt=actx.currentTime,o=actx.createOscillator(),g=actx.createGain();o.type='triangle';
+  o.frequency.setValueAtTime(420,tt);o.frequency.exponentialRampToValueAtTime(70,tt+.3);
+  g.gain.setValueAtTime(.0001,tt);g.gain.exponentialRampToValueAtTime(.4,tt+.01);
+  g.gain.exponentialRampToValueAtTime(.0001,tt+.6);o.connect(g).connect(actx.destination);
+  o.start(tt);o.stop(tt+.65);}catch(e){}}
 
 slider.addEventListener('input',()=>{ if(holding) return; baseT=slider.value/1000; t=baseT; });
 disp.addEventListener('pointerdown',e=>{e.preventDefault(); if(sealed) return;
@@ -206,10 +201,10 @@ function loop(now){
     if(now-lastVibe>110){vibe(4);lastVibe=now;}
     if(k>=1&&!sealed){ sealed=true; holding=false; slider.value=1000;
       vibe([0,70]); sealSound();
-      flash.style.opacity=.85; setTimeout(()=>flash.style.opacity=0,150);
+      flash.style.opacity=.8; setTimeout(()=>flash.style.opacity=0,150);
       setTimeout(()=>{sealed=false;holdK=0;},2000); }
   }else if(!sealed){ t+=(baseT-t)*0.16; holdK+=(0-holdK)*0.1; }
-  drawFluid(t,now);
+  drawEnergy(t,now);
   drawDial(sealed?1:holdK);
   stateEl.textContent=stateName(t);
   stateEl.classList.toggle('sealed',t>=.999);
