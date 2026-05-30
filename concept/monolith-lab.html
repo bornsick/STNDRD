@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#0D0D0F" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<title>Monolith Lab — SHIP</title>
+<style>
+:root{
+  --bg:#0D0D0F; --primary:#F4F4F2; --secondary:#8D8D93; --accent:#F5F0E8;
+  --font:-apple-system,"SF Pro Display","Inter","Helvetica Neue",system-ui,sans-serif;
+  --MW:180px; --MH:320px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;background:var(--bg);color:var(--primary);font-family:var(--font);
+  -webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%;text-size-adjust:100%;
+  touch-action:pan-y;overscroll-behavior:none;}
+body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(120% 60% at 50% -5%,rgba(245,240,232,.05),transparent 60%),
+             radial-gradient(100% 60% at 50% 120%,rgba(0,0,0,.55),transparent 55%);}
+
+.topbar{position:fixed;top:0;left:0;right:0;z-index:5;
+  display:flex;justify-content:space-between;align-items:center;
+  padding:max(16px,env(safe-area-inset-top)) 22px 12px;
+  font-size:11px;letter-spacing:.3em;text-transform:uppercase;color:var(--secondary);
+  background:linear-gradient(var(--bg),rgba(13,13,15,.0));}
+
+.deck{position:relative;z-index:1;}
+.lab{min-height:100svh;min-height:100vh;display:flex;flex-direction:column;
+  justify-content:center;gap:8px;padding:96px 26px max(34px,env(safe-area-inset-bottom));}
+.lab__head h2{font-weight:300;font-size:clamp(40px,12vw,72px);letter-spacing:-.025em;margin:0;line-height:.95;}
+.lab__head .sub{margin:8px 0 0;color:var(--secondary);font-size:13px;letter-spacing:.06em;}
+
+.stage{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:30px;min-height:420px;position:relative;}
+.statelabel{font-size:11px;letter-spacing:.4em;text-transform:uppercase;color:var(--secondary);
+  height:14px;transition:color .3s;}
+.statelabel.sealed{color:var(--accent);}
+
+/* ── Monolith object ─────────────────────────────────────────── */
+.mono{--t:0;position:relative;width:var(--MW);height:var(--MH);
+  transform:scale(calc(1 + .025*var(--t)));transition:transform .25s ease;cursor:pointer;
+  filter:drop-shadow(0 calc(24px + 26px*var(--t)) calc(38px + 24px*var(--t)) rgba(0,0,0,calc(.5 + .2*var(--t))));}
+.floor{position:absolute;z-index:1;left:50%;bottom:-34px;transform:translateX(-50%);
+  width:150px;height:30px;border-radius:50%;
+  background:radial-gradient(ellipse at center,rgba(245,240,232,calc(.07*var(--t))),transparent 70%);
+  filter:blur(2px);}
+/* depth: a darker right side face, lightly skewed */
+.side{position:absolute;z-index:2;top:7px;right:-12px;width:12px;height:calc(100% - 14px);
+  background:linear-gradient(#101015,#08080b);transform:skewY(30deg);transform-origin:top right;
+  opacity:calc(.35 + .55*var(--t));border-radius:1px;}
+.frag{position:absolute;z-index:3;background-repeat:no-repeat;
+  transform:
+    translate(calc(var(--ox)*(1 - var(--t))*1px), calc(var(--oy)*(1 - var(--t))*1px))
+    rotate(calc(var(--or)*(1 - var(--t))*1deg));
+  opacity:calc(.5 + .5*var(--t));
+  transition:transform .1s linear,opacity .1s linear;will-change:transform;}
+/* faint seams between assembled pieces (stone variants) */
+.frag.seam{box-shadow:inset 0 0 0 .5px rgba(0,0,0,calc(.35 - .25*var(--t)));}
+.sealframe{position:absolute;z-index:4;inset:-1.5px;pointer-events:none;
+  border:1px solid rgba(245,240,232,calc(.04 + .5*var(--t)));
+  box-shadow:0 0 calc(34px*var(--t)) rgba(245,240,232,calc(.10*var(--t)));
+  opacity:calc(.15 + .85*var(--t));transition:opacity .25s;}
+.seal{position:absolute;z-index:5;left:0;right:0;top:50%;transform:translateY(-50%);
+  text-align:center;font-size:13px;letter-spacing:.34em;font-variant-numeric:tabular-nums;
+  color:rgba(245,240,232,calc(.5*var(--t)));pointer-events:none;transition:color .3s;}
+
+/* ── controls ─────────────────────────────────────────────────── */
+.controls{display:flex;flex-direction:column;gap:12px;}
+.slider{-webkit-appearance:none;appearance:none;width:100%;height:2px;border-radius:2px;
+  background:rgba(141,141,147,.3);outline:none;}
+.slider::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;
+  background:var(--accent);cursor:pointer;box-shadow:0 0 0 1px rgba(0,0,0,.3);}
+.slider::-moz-range-thumb{width:20px;height:20px;border:none;border-radius:50%;background:var(--accent);}
+.hint{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:rgba(141,141,147,.6);text-align:center;}
+.scaleline{display:flex;justify-content:space-between;font-size:9px;letter-spacing:.14em;
+  text-transform:uppercase;color:rgba(141,141,147,.45);}
+
+.seal-flash{position:fixed;inset:0;background:var(--accent);z-index:9;opacity:0;pointer-events:none;
+  transition:opacity .12s;mix-blend-mode:overlay;}
+@media (prefers-reduced-motion:reduce){.frag,.mono{transition:none;}}
+</style>
+</head>
+<body>
+<div class="seal-flash" id="flash"></div>
+<div class="topbar"><span>Monolith Lab</span><span>SHIP · v2</span></div>
+<div class="deck" id="deck"></div>
+
+<script>
+const MW=180, MH=320, CX=MW/2, CY=MH/2;
+const STONE='linear-gradient(122deg,#34343d 0%,#24242b 42%,#161619 100%)';
+
+/* add one fragment to a monolith */
+function frag(mono,o){
+  const f=document.createElement('div');
+  f.className='frag'+(o.seam?' seam':'');
+  f.style.left=o.x+'px'; f.style.top=o.y+'px';
+  f.style.width=o.w+'px'; f.style.height=o.h+'px';
+  if(o.light!=null){
+    const l=o.light;
+    f.style.background=`linear-gradient(122deg,hsl(243 7% ${l}%),hsl(243 8% ${Math.max(7,l-15)}%))`;
+  }else{
+    f.style.backgroundImage=STONE;
+    f.style.backgroundSize=MW+'px '+MH+'px';
+    f.style.backgroundPosition=(-o.x)+'px '+(-o.y)+'px';
+  }
+  if(o.clip) f.style.clipPath=o.clip;
+  f.style.setProperty('--ox',o.ox); f.style.setProperty('--oy',o.oy); f.style.setProperty('--or',o.or);
+  mono.insertBefore(f, mono.querySelector('.sealframe'));
+}
+/* radial offset helper: push a piece outward from the monolith centre */
+function radial(x,y,w,h,mag,rot){
+  const px=x+w/2-CX, py=y+h/2-CY, d=Math.hypot(px,py)||1;
+  return {ox:px/d*mag, oy:py/d*mag, or:rot};
+}
+
+/* ── builders ─────────────────────────────────────────────────── */
+function buildStrata(m){
+  const n=7,h=44,gap=2;
+  for(let i=0;i<n;i++){
+    const y=i*(h+gap), s=i%2?1:-1;
+    frag(m,{x:0,y,w:MW,h,seam:true, ox:s*(26+i*5), oy:(i-3)*8, or:s*(1.4+i*0.25)});
+  }
+}
+function buildObelisk(m){
+  const cols=3, rows=4, w=MW/cols, h=MH/rows;
+  for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
+    const x=c*w,y=r*h;
+    const o=radial(x,y,w,h,72,((r+c)%2?1:-1)*(7+r*1.5));
+    frag(m,{x,y,w,h,seam:true,ox:o.ox,oy:o.oy,or:o.or});
+  }
+}
+function buildAssembly(m){
+  const cols=4, rows=7, w=MW/cols, h=MH/rows;
+  for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){
+    const x=c*w,y=r*h;
+    const o=radial(x,y,w,h,46,((r*cols+c)%2?1:-1)*5);
+    frag(m,{x,y,w,h,seam:true,ox:o.ox,oy:o.oy,or:o.or});
+  }
+}
+function buildFacets(m){
+  const rows=4, h=MH/rows;
+  for(let r=0;r<rows;r++){
+    const y=r*h, flip=r%2===0;
+    const triA = flip?'polygon(0 0,100% 0,0 100%)':'polygon(0 0,100% 0,100% 100%)';
+    const triB = flip?'polygon(100% 0,100% 100%,0 100%)':'polygon(0 0,0 100%,100% 100%)';
+    const lA=30 - r*2, lB=20 - r*1.5;
+    const oA=radial(0,y,MW,h,58,(flip?-1:1)*8);
+    const oB=radial(0,y,MW,h,58,(flip?1:-1)*8);
+    frag(m,{x:0,y,w:MW,h,clip:triA,light:lA,ox:oA.ox-26,oy:oA.oy,or:oA.or});
+    frag(m,{x:0,y,w:MW,h,clip:triB,light:lB,ox:oB.ox+26,oy:oB.oy,or:oB.or});
+  }
+}
+
+const VARIANTS=[
+  {id:'obelisk', name:'Obelisk', sub:'one block, shattered → sealed', build:buildObelisk},
+  {id:'strata',  name:'Strata',  sub:'layers compacting into stone',   build:buildStrata},
+  {id:'assembly',name:'Assembly',sub:'blocks settling into structure',  build:buildAssembly},
+  {id:'facets',  name:'Facets',  sub:'shards converging into crystal',  build:buildFacets},
+];
+
+const flash=document.getElementById('flash'), deck=document.getElementById('deck');
+
+function stateName(t){
+  if(t>=1) return 'SEALED · v1.5.0';
+  if(t>=0.7) return 'GATE OPEN';
+  if(t>=0.34) return 'STABILIZING';
+  return 'DEPLOYING';
+}
+function setT(mono,label,seal,t){
+  mono.style.setProperty('--t', t.toFixed(3));
+  label.textContent=stateName(t);
+  label.classList.toggle('sealed', t>=1);
+  seal.textContent = t>=0.7 ? (t>=1?'v1.5.0':'v1.4.0') : '';
+}
+
+let actx=null;
+function sealSound(){
+  try{ actx=actx||new (window.AudioContext||window.webkitAudioContext)();
+    const t=actx.currentTime, o=actx.createOscillator(), g=actx.createGain();
+    o.type='sine'; o.frequency.setValueAtTime(155,t);
+    o.frequency.exponentialRampToValueAtTime(40,t+.22);
+    g.gain.setValueAtTime(.0001,t); g.gain.exponentialRampToValueAtTime(.45,t+.012);
+    g.gain.exponentialRampToValueAtTime(.0001,t+.5);
+    o.connect(g).connect(actx.destination); o.start(t); o.stop(t+.55);
+  }catch(e){}
+}
+const vibe=p=>{try{navigator.vibrate&&navigator.vibrate(p);}catch(e){}};
+
+VARIANTS.forEach(v=>{
+  const sec=document.createElement('section'); sec.className='lab';
+  sec.innerHTML=`
+    <div class="lab__head"><h2>${v.name}</h2><p class="sub">${v.sub}</p></div>
+    <div class="stage">
+      <div class="mono" data-mono>
+        <div class="floor"></div><div class="side"></div>
+        <div class="sealframe"></div><div class="seal"></div>
+      </div>
+      <div class="statelabel">DEPLOYING</div>
+    </div>
+    <div class="controls">
+      <input class="slider" type="range" min="0" max="1000" value="0">
+      <div class="scaleline"><span>Deploying</span><span>Stabilizing</span><span>Open</span><span>Sealed</span></div>
+      <div class="hint">drag to scrub states · hold the monolith to ship</div>
+    </div>`;
+  deck.appendChild(sec);
+
+  const mono=sec.querySelector('[data-mono]'),
+        label=sec.querySelector('.statelabel'),
+        seal=sec.querySelector('.seal'),
+        slider=sec.querySelector('.slider');
+  v.build(mono);
+  setT(mono,label,seal,0);
+
+  slider.addEventListener('input',()=>setT(mono,label,seal,slider.value/1000));
+
+  /* hold-to-ship */
+  let raf=null, holding=false, start=0, baseT=0, sealed=false;
+  const HOLD=1500;
+  mono.addEventListener('pointerdown',e=>{
+    e.preventDefault(); if(sealed) return;
+    holding=true; baseT=slider.value/1000; start=performance.now(); vibe(8);
+    let lp=0;
+    const tick=now=>{
+      if(!holding) return;
+      const k=Math.min(1,(now-start)/HOLD);
+      const t=baseT+(1-baseT)*k;
+      setT(mono,label,seal,t);
+      if(now-lp>120){vibe(4);lp=now;}
+      if(k>=1){ // sealed
+        sealed=true; holding=false; slider.value=1000;
+        vibe([0,60]); sealSound();
+        flash.style.opacity=.85; setTimeout(()=>flash.style.opacity=0,140);
+        setTimeout(()=>{sealed=false;},1800);
+        return;
+      }
+      raf=requestAnimationFrame(tick);
+    };
+    raf=requestAnimationFrame(tick);
+  });
+  const release=()=>{
+    if(!holding) return; holding=false; cancelAnimationFrame(raf);
+    const from=parseFloat(mono.style.getPropertyValue('--t')), t0=performance.now();
+    const back=now=>{const k=Math.min(1,(now-t0)/280);
+      const t=from+(baseT-from)*k; setT(mono,label,seal,t);
+      if(k<1) requestAnimationFrame(back); else slider.value=Math.round(baseT*1000);};
+    requestAnimationFrame(back);
+  };
+  window.addEventListener('pointerup',release);
+  window.addEventListener('pointercancel',release);
+});
+</script>
+</body>
+</html>
