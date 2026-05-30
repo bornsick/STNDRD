@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#0B0D11" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<title>Monolith — Fluid</title>
+<style>
+:root{--bg:#0B0D11;--primary:#F4F4F2;--secondary:#9AA1AC;--accent:#F5F0E8;
+  --font:-apple-system,"SF Pro Display","Inter","Helvetica Neue",system-ui,sans-serif;}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--primary);font-family:var(--font);
+  -webkit-font-smoothing:antialiased;-webkit-text-size-adjust:100%;touch-action:none;overscroll-behavior:none;}
+/* cool, airy depth behind the fluid — echoes the reference's soft light */
+body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(80% 55% at 50% 38%,rgba(120,140,175,.18),transparent 70%),
+             radial-gradient(120% 70% at 50% 120%,rgba(0,0,0,.5),transparent 60%);}
+.wrap{position:fixed;inset:0;z-index:1;display:flex;flex-direction:column;}
+.top{display:flex;justify-content:space-between;align-items:center;
+  padding:max(18px,env(safe-area-inset-top)) 24px 0;font-size:12px;letter-spacing:.2em;color:var(--secondary);}
+.title{position:absolute;left:24px;top:max(74px,calc(env(safe-area-inset-top) + 56px));z-index:3;}
+.title .k{font-size:12px;letter-spacing:.18em;color:var(--secondary);text-transform:uppercase;}
+.title .h{font-weight:300;font-size:clamp(34px,9vw,48px);letter-spacing:-.02em;line-height:1;margin-top:6px;}
+#fluid{position:absolute;inset:0;z-index:1;width:100%;height:100%;display:block;}
+.statelabel{position:absolute;left:0;right:0;bottom:178px;z-index:3;text-align:center;
+  font-size:11px;letter-spacing:.42em;text-transform:uppercase;color:var(--secondary);transition:color .3s;}
+.statelabel.sealed{color:var(--accent);}
+.panel{position:absolute;left:0;right:0;bottom:0;z-index:3;
+  padding:0 28px max(26px,env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:14px;}
+.slider{-webkit-appearance:none;appearance:none;width:100%;height:2px;border-radius:2px;background:rgba(154,161,172,.3);outline:none;}
+.slider::-webkit-slider-thumb{-webkit-appearance:none;width:20px;height:20px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 1px rgba(0,0,0,.3);}
+.scaleline{display:flex;justify-content:space-between;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:rgba(154,161,172,.5);}
+.hint{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:rgba(154,161,172,.6);text-align:center;}
+.seal-flash{position:fixed;inset:0;background:var(--accent);z-index:9;opacity:0;pointer-events:none;transition:opacity .12s;mix-blend-mode:overlay;}
+</style>
+</head>
+<body>
+<div class="seal-flash" id="flash"></div>
+<canvas id="fluid"></canvas>
+<div class="wrap">
+  <div class="top"><span>11:30</span><span>SHIP · v2</span></div>
+</div>
+<div class="title"><div class="k">Implementation</div><div class="h">Sleep<br>Consistency</div></div>
+<div class="statelabel" id="state">DEPLOYING</div>
+<div class="panel">
+  <input class="slider" id="slider" type="range" min="0" max="1000" value="0">
+  <div class="scaleline"><span>Deploying</span><span>Stabilizing</span><span>Open</span><span>Sealed</span></div>
+  <div class="hint">drag to scrub formation · hold the form to ship</div>
+</div>
+
+<script>
+const TAU=Math.PI*2, rnd=(a,b)=>a+Math.random()*(b-a),
+      lerp=(a,b,k)=>a+(b-a)*k, clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),
+      easeIO=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;
+
+const disp=document.getElementById('fluid'), D=disp.getContext('2d');
+const flash=document.getElementById('flash'), stateEl=document.getElementById('state'),
+      slider=document.getElementById('slider');
+
+let CW,CH,cx,cy,bw,bh,dpr,buf,B,S=0.5,bW,bH,blobs=[];
+
+function silhouette(){ // monolith slab geometry in display coords
+  bw=CW*0.30; bh=CH*0.50; cx=CW*0.52; cy=CH*0.46;
+}
+function tri(){return (Math.random()+Math.random())/2;} // centre-biased [0,1]
+function setup(){
+  dpr=Math.min(2,window.devicePixelRatio||1);
+  CW=window.innerWidth; CH=window.innerHeight;
+  disp.width=CW*dpr; disp.height=CH*dpr; D.setTransform(dpr,0,0,dpr,0,0);
+  silhouette();
+  // low-res buffer for cheap, naturally-soft fluid
+  buf=document.createElement('canvas'); bW=Math.round(CW*S); bH=Math.round(CH*S);
+  buf.width=bW; buf.height=bH; B=buf.getContext('2d');
+  blobs=[];
+  for(let i=0;i<40;i++){
+    // target inside the slab (centre-biased so the core is dense)
+    const tx=cx + (tri()-0.5)*bw*1.05;
+    const ty=cy + (tri()-0.5)*bh*1.05;
+    const a=rnd(0,TAU), r=rnd(CW*0.15,CW*0.6);
+    blobs.push({
+      tx:tx*S, ty:ty*S,
+      x:(cx+Math.cos(a)*r)*S, y:(cy+Math.sin(a)*r)*S,
+      vx:0,vy:0, r:rnd(16,30), ph:rnd(0,TAU), sp:rnd(.6,1.4)
+    });
+  }
+}
+addEventListener('resize',setup);
+
+function drawFluid(t,time){
+  const turb=lerp(1.15,0.05,t), attr=lerp(0.0008,0.075,t), damp=0.87;
+  B.clearRect(0,0,bW,bH);
+  B.globalCompositeOperation='lighter';
+  B.filter=`blur(${lerp(8,3.2,t)}px)`;
+  const r0=Math.round(lerp(150,247,t)), g0=Math.round(lerp(170,241,t)), b0=Math.round(lerp(208,233,t));
+  for(const p of blobs){
+    // curl-ish turbulent flow + attraction to silhouette target
+    const nx=Math.sin(p.y*0.05+time*0.0006*p.sp)+Math.cos(p.x*0.04-time*0.0005);
+    const ny=Math.cos(p.x*0.05-time*0.0006*p.sp)+Math.sin(p.y*0.04+time*0.0005);
+    let fx=nx*turb, fy=ny*turb-0.04*turb;
+    fx+=(p.tx-p.x)*attr; fy+=(p.ty-p.y)*attr;
+    p.vx=(p.vx+fx)*damp; p.vy=(p.vy+fy)*damp;
+    p.x+=p.vx; p.y+=p.vy;
+    const rr=p.r*(1+0.12*Math.sin(time*0.001*p.sp+p.ph))*(1-0.18*t);
+    const g=B.createRadialGradient(p.x,p.y,0,p.x,p.y,rr);
+    g.addColorStop(0,`rgba(${r0},${g0},${b0},${0.42+0.20*t})`);
+    g.addColorStop(.55,`rgba(${r0-30},${g0-25},${b0-15},${0.10+0.06*t})`);
+    g.addColorStop(1,'rgba(0,0,0,0)');
+    B.fillStyle=g; B.beginPath(); B.arc(p.x,p.y,rr,0,TAU); B.fill();
+  }
+  B.filter='none'; B.globalCompositeOperation='source-over';
+
+  D.clearRect(0,0,CW,CH);
+  D.imageSmoothingEnabled=true;
+  D.globalAlpha=1;
+  D.drawImage(buf,0,0,CW,CH);
+
+  // crisp edge emerges as it seals -> "solid, permanent"
+  if(t>0.82){
+    const a=(t-0.82)/0.18;
+    roundSlab(D, cx-bw/2, cy-bh/2, bw, bh, Math.min(bw,bh)*0.22);
+    D.strokeStyle=`rgba(245,240,232,${0.5*a})`; D.lineWidth=1.2; D.stroke();
+    D.save(); D.shadowBlur=30*a; D.shadowColor='rgba(245,240,232,'+0.5*a+')'; D.stroke(); D.restore();
+  }
+}
+function roundSlab(c,x,y,w,h,r){
+  c.beginPath();
+  c.moveTo(x+r,y); c.arcTo(x+w,y,x+w,y+h,r); c.arcTo(x+w,y+h,x,y+h,r);
+  c.arcTo(x,y+h,x,y,r); c.arcTo(x,y,x+w,y,r); c.closePath();
+}
+
+/* radial hold-dial echoing the reference control */
+function drawDial(k){
+  if(k<=0) return;
+  const ax=cx, ay=cy+bh/2+58, R=44, A0=Math.PI*0.75, A1=Math.PI*2.25;
+  D.save();
+  // ticks
+  for(let i=0;i<=28;i++){const a=lerp(A0,A1,i/28), on=i/28<=k;
+    const r1=R+(i%7===0?9:5), x1=ax+Math.cos(a)*R, y1=ay+Math.sin(a)*R,
+          x2=ax+Math.cos(a)*r1, y2=ay+Math.sin(a)*r1;
+    D.strokeStyle=on?'rgba(245,240,232,.85)':'rgba(154,161,172,.3)'; D.lineWidth=1.4;
+    D.beginPath();D.moveTo(x1,y1);D.lineTo(x2,y2);D.stroke();}
+  // knob
+  const ka=lerp(A0,A1,k), kx=ax+Math.cos(ka)*R, ky=ay+Math.sin(ka)*R;
+  D.fillStyle='#fff';D.beginPath();D.arc(kx,ky,7,0,TAU);D.fill();
+  D.restore();
+}
+
+/* state machine */
+let t=0, baseT=0, holding=false, holdStart=0, sealed=false, holdK=0;
+const HOLD=1600;
+const stateName=v=>v>=.999?'SEALED · v1.5.0':v>=.7?'GATE OPEN':v>=.34?'STABILIZING':'DEPLOYING';
+const vibe=p=>{try{navigator.vibrate&&navigator.vibrate(p);}catch(e){}};
+let actx=null;
+function sealSound(){try{actx=actx||new(window.AudioContext||window.webkitAudioContext)();
+  const tt=actx.currentTime,o=actx.createOscillator(),g=actx.createGain();o.type='sine';
+  o.frequency.setValueAtTime(150,tt);o.frequency.exponentialRampToValueAtTime(40,tt+.24);
+  g.gain.setValueAtTime(.0001,tt);g.gain.exponentialRampToValueAtTime(.45,tt+.012);
+  g.gain.exponentialRampToValueAtTime(.0001,tt+.55);o.connect(g).connect(actx.destination);
+  o.start(tt);o.stop(tt+.6);}catch(e){}}
+
+slider.addEventListener('input',()=>{ if(holding) return; baseT=slider.value/1000; t=baseT; });
+disp.addEventListener('pointerdown',e=>{e.preventDefault(); if(sealed) return;
+  holding=true; baseT=slider.value/1000; holdStart=performance.now(); vibe(8);});
+const release=()=>{ holding=false; };
+addEventListener('pointerup',release); addEventListener('pointercancel',release);
+
+let lastVibe=0;
+function loop(now){
+  if(holding){
+    const k=clamp((now-holdStart)/HOLD,0,1); holdK=k;
+    t=baseT+(1-baseT)*k;
+    if(now-lastVibe>110){vibe(4);lastVibe=now;}
+    if(k>=1&&!sealed){ sealed=true; holding=false; slider.value=1000;
+      vibe([0,70]); sealSound();
+      flash.style.opacity=.85; setTimeout(()=>flash.style.opacity=0,150);
+      setTimeout(()=>{sealed=false;holdK=0;},2000); }
+  }else if(!sealed){ t+=(baseT-t)*0.16; holdK+=(0-holdK)*0.1; }
+  drawFluid(t,now);
+  drawDial(sealed?1:holdK);
+  stateEl.textContent=stateName(t);
+  stateEl.classList.toggle('sealed',t>=.999);
+  requestAnimationFrame(loop);
+}
+setup(); requestAnimationFrame(loop);
+</script>
+</body>
+</html>
