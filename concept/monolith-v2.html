@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#0D0D0F" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>SHIP — Monolith v2 (concept)</title>
+<style>
+/* ════════════════════════════════════════════════════════════════
+   SHIP · Monolith v2 — premium editorial concept board.
+   Dark mode. Massive type. The Monolith is the identity.
+   Palette per spec: bg #0D0D0F · primary #F4F4F2 · secondary #8D8D93
+   · accent #F5F0E8.  Four screens. Hold the Monolith to ship.
+   ════════════════════════════════════════════════════════════════ */
+:root{
+  --bg:#0D0D0F;
+  --primary:#F4F4F2;
+  --secondary:#8D8D93;
+  --accent:#F5F0E8;
+  --slab-lo:#17171A;
+  --slab-hi:#26262B;
+  --edge:rgba(245,240,232,.0);
+  --font:-apple-system,"SF Pro Display","Inter","Helvetica Neue",system-ui,sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--primary);
+  font-family:var(--font);-webkit-font-smoothing:antialiased;
+  -webkit-text-size-adjust:100%;text-size-adjust:100%;touch-action:manipulation;
+  overscroll-behavior:none;}
+
+/* subtle editorial depth — a single soft light from above */
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(120% 70% at 50% -10%, rgba(245,240,232,.05), transparent 60%),
+    radial-gradient(100% 60% at 50% 120%, rgba(0,0,0,.6), transparent 55%);}
+
+/* scroll-snap deck */
+.deck{height:100dvh;height:100vh;overflow-y:scroll;scroll-snap-type:y mandatory;
+  scroll-behavior:smooth;position:relative;z-index:1;}
+.screen{height:100dvh;height:100vh;scroll-snap-align:start;scroll-snap-stop:always;
+  display:flex;flex-direction:column;justify-content:space-between;
+  padding:max(34px,env(safe-area-inset-top)) 30px max(40px,env(safe-area-inset-bottom));
+  position:relative;}
+
+/* top + bottom meta rows */
+.row{display:flex;align-items:baseline;justify-content:space-between;}
+.version{font-size:15px;letter-spacing:.22em;color:var(--accent);font-weight:400;
+  font-variant-numeric:tabular-nums;}
+.kicker{font-size:11px;letter-spacing:.32em;color:var(--secondary);text-transform:uppercase;}
+
+/* hero implementation name */
+.hero{font-weight:300;font-size:clamp(54px,16.5vw,118px);line-height:.92;
+  letter-spacing:-.025em;margin:0;}
+.center{flex:1;display:flex;flex-direction:column;justify-content:center;gap:30px;}
+
+/* labelled fact */
+.facts{display:flex;flex-direction:column;gap:22px;}
+.fact__k{font-size:11px;letter-spacing:.3em;color:var(--secondary);
+  text-transform:uppercase;margin-bottom:6px;}
+.fact__v{font-size:19px;font-weight:400;letter-spacing:.01em;color:var(--primary);}
+.fact__v--soft{color:var(--secondary);}
+.facts--inline{flex-direction:row;flex-wrap:wrap;gap:34px;}
+
+/* tags / pills */
+.tag{display:inline-flex;align-items:center;gap:9px;font-size:12px;
+  letter-spacing:.2em;text-transform:uppercase;color:var(--secondary);
+  border:1px solid rgba(245,240,232,.16);border-radius:999px;padding:7px 15px;}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--secondary);}
+.dot--on{background:var(--accent);box-shadow:0 0 10px var(--accent);}
+
+.link{font-size:14px;letter-spacing:.14em;color:var(--secondary);
+  text-transform:uppercase;border-bottom:1px solid rgba(141,141,147,.4);
+  padding-bottom:3px;width:fit-content;}
+
+/* ── The Monolith ─────────────────────────────────────────────── */
+.stage{flex:1;display:flex;align-items:center;justify-content:center;position:relative;}
+.monolith{
+  --t:0;                         /* 0 = fragmented · 1 = sealed solid */
+  width:172px;height:330px;position:relative;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  transform:scale(calc(1 + .02*var(--t)));
+  transition:transform .25s ease;
+  cursor:pointer;
+}
+.slab{
+  width:172px;height:46px;position:relative;
+  background:linear-gradient(100deg,var(--slab-lo),var(--slab-hi));
+  border-top:1px solid rgba(245,240,232,calc(.05 + .04*var(--t)));
+  border-bottom:1px solid rgba(0,0,0,calc(.5 - .2*var(--t)));
+  transform:
+    translate(calc(var(--ox)*(1 - var(--t))*1px), calc(var(--oy)*(1 - var(--t))*1px))
+    rotate(calc(var(--or)*(1 - var(--t))*1deg));
+  opacity:calc(.4 + .6*var(--t));
+  transition:transform .12s linear,opacity .12s linear,box-shadow .25s ease;
+  will-change:transform,opacity;
+}
+/* sealed frame + glow strengthen with t */
+.monolith::after{content:"";position:absolute;inset:-2px;pointer-events:none;
+  border:1px solid rgba(245,240,232,calc(.06 + .5*var(--t)));
+  box-shadow:0 calc(26px + 30px*var(--t)) calc(50px + 30px*var(--t)) rgba(0,0,0,calc(.45 + .25*var(--t))),
+             0 0 calc(40px*var(--t)) rgba(245,240,232,calc(.10*var(--t)));
+  opacity:calc(.2 + .8*var(--t));transition:opacity .25s ease,box-shadow .25s ease;}
+/* engraved version, only when sealed */
+.monolith__seal{position:absolute;font-size:13px;letter-spacing:.34em;
+  color:rgba(245,240,232,calc(.0 + .55*var(--t)));font-variant-numeric:tabular-nums;
+  pointer-events:none;transition:color .3s ease;}
+/* reflection */
+.monolith__floor{position:absolute;bottom:-40px;width:150px;height:34px;
+  background:radial-gradient(ellipse at center, rgba(245,240,232,calc(.05*var(--t))), transparent 70%);
+  filter:blur(3px);}
+
+.hold-hint{position:absolute;bottom:42px;left:0;right:0;text-align:center;
+  font-size:11px;letter-spacing:.34em;text-transform:uppercase;color:var(--secondary);
+  opacity:0;transition:opacity .3s ease;pointer-events:none;}
+.hold-hint.show{opacity:1;}
+
+/* gate requirements */
+.reqs{display:flex;flex-direction:column;gap:14px;}
+.req{display:flex;align-items:center;gap:13px;font-size:16px;color:var(--primary);}
+.req .mk{font-size:14px;color:var(--accent);width:16px;}
+.gate-word{font-size:clamp(64px,20vw,130px);font-weight:300;letter-spacing:-.02em;
+  line-height:.9;}
+.gate-word small{display:block;font-size:12px;letter-spacing:.4em;color:var(--secondary);
+  text-transform:uppercase;margin-bottom:14px;font-weight:400;}
+
+.shipped-word{font-size:13px;letter-spacing:.5em;color:var(--accent);
+  text-transform:uppercase;}
+
+/* page dots */
+.dots{position:fixed;right:14px;top:50%;transform:translateY(-50%);z-index:3;
+  display:flex;flex-direction:column;gap:11px;}
+.dots b{width:6px;height:6px;border-radius:50%;background:rgba(141,141,147,.35);
+  transition:.3s;}
+.dots b.active{background:var(--accent);transform:scale(1.35);}
+
+/* completion flash */
+.seal-flash{position:fixed;inset:0;background:var(--accent);z-index:9;
+  opacity:0;pointer-events:none;transition:opacity .12s ease;mix-blend-mode:overlay;}
+
+.muted{color:var(--secondary);}
+.note{position:fixed;left:0;right:0;bottom:0;z-index:3;text-align:center;
+  font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:rgba(141,141,147,.5);
+  padding:8px;pointer-events:none;}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;}}
+</style>
+</head>
+<body>
+
+<div class="seal-flash" id="sealFlash"></div>
+
+<div class="dots" id="dots"><b class="active"></b><b></b><b></b><b></b></div>
+
+<div class="deck" id="deck">
+
+  <!-- ── 01 · HOME ───────────────────────────────────────────── -->
+  <section class="screen" data-state="deploying">
+    <div class="row">
+      <span class="version">v1.4.0</span>
+      <span class="kicker">SHIP</span>
+    </div>
+    <div class="center">
+      <h1 class="hero">Sleep<br>Consistency</h1>
+      <span class="tag"><span class="dot"></span>Integrating</span>
+      <div class="facts--inline facts">
+        <div><div class="fact__k">Held</div><div class="fact__v">14 days</div></div>
+        <div><div class="fact__k">Remaining</div><div class="fact__v fact__v--soft">7 days</div></div>
+      </div>
+    </div>
+    <div>
+      <div class="fact__k">Current Friction</div>
+      <div class="fact__v">Phone use after 10 PM</div>
+    </div>
+  </section>
+
+  <!-- ── 02 · IMPLEMENTATION DETAIL ──────────────────────────── -->
+  <section class="screen" data-state="stabilizing">
+    <div class="row">
+      <h1 class="hero" style="font-size:clamp(40px,12vw,76px)">Sleep<br>Consistency</h1>
+    </div>
+    <div class="stage">
+      <div class="monolith" data-mono>
+        <div class="monolith__floor"></div>
+      </div>
+    </div>
+    <div class="facts--inline facts">
+      <div><div class="fact__k">State</div><div class="fact__v">Stabilizing</div></div>
+      <div><div class="fact__k">Window</div><div class="fact__v">Apr 1 → Apr 30</div></div>
+      <div><div class="fact__k">Signal</div><div class="fact__v">Held</div></div>
+      <div style="flex-basis:100%"><div class="fact__k">Current Friction</div><div class="fact__v">Phone use after 10 PM</div></div>
+      <div class="link">Open Manual ↗</div>
+    </div>
+  </section>
+
+  <!-- ── 03 · GATE OPEN (interactive) ────────────────────────── -->
+  <section class="screen" data-state="gate" id="gateScreen">
+    <div class="row">
+      <span class="version" id="gateVersion">v1.4.0</span>
+      <span class="kicker">Gate</span>
+    </div>
+    <div class="stage">
+      <div class="monolith" data-mono id="gateMono" style="--t:.82">
+        <div class="monolith__seal" id="gateSeal">v1.4.0</div>
+        <div class="monolith__floor"></div>
+      </div>
+      <div class="hold-hint" id="holdHint">Hold to Ship</div>
+    </div>
+    <div class="reqs">
+      <div class="gate-word"><small>Status</small>OPEN</div>
+      <div class="req"><span class="mk">✓</span> Stabilization complete</div>
+      <div class="req"><span class="mk">✓</span> Signal held</div>
+    </div>
+  </section>
+
+  <!-- ── 04 · SHIPPED ────────────────────────────────────────── -->
+  <section class="screen" data-state="shipped" id="shippedScreen">
+    <div class="row">
+      <span class="version">v1.5.0</span>
+      <span class="kicker">SHIP</span>
+    </div>
+    <div class="center">
+      <h1 class="hero">Sleep<br>Consistency</h1>
+      <span class="shipped-word">Shipped</span>
+      <div><div class="fact__k">Date</div><div class="fact__v">April 28</div></div>
+    </div>
+    <div class="stage" style="flex:0 0 auto;height:200px">
+      <div class="monolith" data-mono style="--t:1;width:120px;height:150px">
+        <div class="monolith__seal">v1.5.0</div>
+      </div>
+    </div>
+    <div class="fact__v--soft fact__v" style="text-align:center">Added to changelog</div>
+  </section>
+
+</div>
+
+<div class="note">Concept · hold the gate monolith to ship</div>
+
+<script>
+/* Build the slab stack inside every monolith. An intentional (not random)
+   fragmented composition that converges to a flush, sealed solid as --t→1. */
+const OFFS=[ /* ox, oy, or — per slab */
+  [ 34,-58, 2.4],[-50,-30,-2.8],[ 20,-8, 1.4],[-28, 6,-1.0],
+  [ 58, 22, 3.2],[-16, 40,-2.0],[ 40, 60, 2.0],
+];
+document.querySelectorAll('[data-mono]').forEach(m=>{
+  OFFS.forEach(([ox,oy,or])=>{
+    const s=document.createElement('div');
+    s.className='slab';
+    s.style.setProperty('--ox',ox);
+    s.style.setProperty('--oy',oy);
+    s.style.setProperty('--or',or);
+    m.insertBefore(s,m.firstChild);
+  });
+});
+
+/* page-dot sync */
+const deck=document.getElementById('deck'),dots=[...document.querySelectorAll('#dots b')];
+const screens=[...document.querySelectorAll('.screen')];
+screens.forEach(s=>new IntersectionObserver((es)=>es.forEach(e=>{if(e.isIntersecting){
+  const i=screens.indexOf(e.target);dots.forEach((d,k)=>d.classList.toggle('active',k===i));}}),
+  {root:deck,threshold:.6}).observe(s));
+
+/* ── Hold-to-ship on the Gate monolith ────────────────────────── */
+const gateMono=document.getElementById('gateMono'),
+      holdHint=document.getElementById('holdHint'),
+      gateSeal=document.getElementById('gateSeal'),
+      gateVersion=document.getElementById('gateVersion'),
+      sealFlash=document.getElementById('sealFlash');
+const T_START=0.82, HOLD_MS=1500;
+let raf=null, holding=false, shipped=false, startT=0;
+
+function vibe(p){ try{ navigator.vibrate && navigator.vibrate(p); }catch(e){} }
+
+/* optional synthesized "seal" — a deep mechanical thunk (no assets) */
+let actx=null;
+function sealSound(){
+  try{
+    actx=actx||new (window.AudioContext||window.webkitAudioContext)();
+    const t=actx.currentTime;
+    const o=actx.createOscillator(),g=actx.createGain();
+    o.type='sine';o.frequency.setValueAtTime(150,t);
+    o.frequency.exponentialRampToValueAtTime(42,t+.22);
+    g.gain.setValueAtTime(.0001,t);
+    g.gain.exponentialRampToValueAtTime(.5,t+.012);
+    g.gain.exponentialRampToValueAtTime(.0001,t+.5);
+    o.connect(g).connect(actx.destination);o.start(t);o.stop(t+.55);
+  }catch(e){}
+}
+
+function setT(v){ gateMono.style.setProperty('--t', v.toFixed(3)); }
+
+function down(e){
+  if(shipped) return;
+  e.preventDefault();
+  holding=true; startT=performance.now();
+  holdHint.classList.add('show'); holdHint.textContent='Hold to Ship';
+  vibe(8);
+  let lastPulse=0;
+  const tick=(now)=>{
+    if(!holding) return;
+    const k=Math.min(1,(now-startT)/HOLD_MS);          // 0→1 over hold
+    setT(T_START + (1-T_START)*k);
+    if(now-lastPulse>120){ vibe(4); lastPulse=now; }     // escalating weight
+    if(k>=1){ complete(); return; }
+    raf=requestAnimationFrame(tick);
+  };
+  raf=requestAnimationFrame(tick);
+}
+function up(){
+  if(shipped||!holding) return;
+  holding=false; cancelAnimationFrame(raf);
+  holdHint.classList.remove('show');
+  // ease back to the open (unsealed) state
+  const from=parseFloat(gateMono.style.getPropertyValue('--t')), t0=performance.now();
+  const back=(now)=>{ const k=Math.min(1,(now-t0)/300);
+    setT(from+(T_START-from)*k); if(k<1) requestAnimationFrame(back); };
+  requestAnimationFrame(back);
+}
+function complete(){
+  shipped=true; holding=false; setT(1);
+  vibe([0,60]);                       // one deep pulse
+  sealSound();
+  sealFlash.style.opacity=.9; setTimeout(()=>sealFlash.style.opacity=0,140);
+  gateSeal.textContent='v1.5.0'; gateVersion.textContent='v1.5.0';
+  holdHint.textContent='Sealed'; holdHint.classList.add('show');
+  setTimeout(()=>{ document.getElementById('shippedScreen')
+    .scrollIntoView({behavior:'smooth'}); },720);
+  // allow re-arming if they scroll back up
+  setTimeout(()=>{ shipped=false; setT(T_START); gateSeal.textContent='v1.4.0';
+    gateVersion.textContent='v1.4.0'; holdHint.classList.remove('show'); },4200);
+}
+gateMono.addEventListener('pointerdown',down);
+window.addEventListener('pointerup',up);
+window.addEventListener('pointercancel',up);
+</script>
+</body>
+</html>
