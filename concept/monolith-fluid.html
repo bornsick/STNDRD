@@ -52,9 +52,21 @@ const disp=document.getElementById('fluid'), D=disp.getContext('2d');
 const flash=document.getElementById('flash'), stateEl=document.getElementById('state'),
       slider=document.getElementById('slider');
 
-let CW,CH,cx,cy,R,dpr,P=[],arcs=[],cubeV=[],cubeE=[];
+let CW,CH,cx,cy,R,dpr,P=[],arcs=[],cageV=[],cageE=[],octaV=[],octaE=[];
 // jagged energy palette: blues, greens, reds (+ cyan/violet accents)
 const PAL=[[64,150,255],[80,225,235],[88,235,150],[255,92,84],[180,96,255],[120,255,120]];
+
+// connect a vertex set into edges by nearest-neighbour distance
+function buildEdges(V){
+  let min=Infinity;
+  for(let i=0;i<V.length;i++)for(let j=i+1;j<V.length;j++){
+    const d=Math.hypot(V[i][0]-V[j][0],V[i][1]-V[j][1],V[i][2]-V[j][2]); if(d<min)min=d;}
+  const E=[];
+  for(let i=0;i<V.length;i++)for(let j=i+1;j<V.length;j++){
+    const d=Math.hypot(V[i][0]-V[j][0],V[i][1]-V[j][1],V[i][2]-V[j][2]); if(d<min*1.08)E.push([i,j]);}
+  return E;
+}
+const norm=v=>{const l=Math.hypot(v[0],v[1],v[2]);return [v[0]/l,v[1]/l,v[2]/l];};
 
 function rot(x,y,z,ax,ay){
   const cz=Math.cos(ay),sz=Math.sin(ay), x1=x*cz+z*sz, z1=-x*sz+z*cz;
@@ -75,9 +87,14 @@ function setup(){
     P.push({ux,uy,uz, cx0:cx+Math.cos(a)*rad, cy0:cy+Math.sin(a)*rad,
       col:PAL[(Math.random()*PAL.length)|0], sz:rnd(0.8,2.0), ph:rnd(0,TAU), sp:rnd(.5,1.5)});
   }
-  // arcane core: a cube (8 verts, 12 edges)
-  cubeV=[[-1,-1,-1],[1,-1,-1],[1,1,-1],[-1,1,-1],[-1,-1,1],[1,-1,1],[1,1,1],[-1,1,1]];
-  cubeE=[[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
+  // outer containment cage: icosahedron (12 verts, 30 edges), faceted shell
+  const ph=(1+Math.sqrt(5))/2;
+  cageV=[[0,1,ph],[0,1,-ph],[0,-1,ph],[0,-1,-ph],[1,ph,0],[1,-ph,0],
+         [-1,ph,0],[-1,-ph,0],[ph,0,1],[ph,0,-1],[-ph,0,1],[-ph,0,-1]].map(norm);
+  cageE=buildEdges(cageV);
+  // inner nucleus: octahedron (6 verts), the bright contained heart
+  octaV=[[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]].map(norm);
+  octaE=buildEdges(octaV);
   arcs=[];
 }
 addEventListener('resize',setup);
@@ -140,26 +157,36 @@ function drawEnergy(t,time){
     D.lineTo(ar.x2,ar.y2); D.stroke();
   }
 
-  // 4) arcane cube core — the understandable final form; emerges as it seals
-  const ca=clamp((t-0.45)/0.55,0,1)*(0.55+0.45*b);
-  if(ca>0.01){
-    const cs=R*0.5, pts=cubeV.map(v=>project([v[0]*cs/R,v[1]*cs/R,v[2]*cs/R],ax,ay,R));
-    // edges (faint wide glow + bright thin)
-    for(const pass of [[3.2,0.18],[1.3,0.9]]){
-      D.lineWidth=pass[0]; D.strokeStyle=`rgba(190,240,255,${ca*pass[1]})`;
-      D.beginPath();
-      for(const [a0,a1] of cubeE){D.moveTo(pts[a0].x,pts[a0].y);D.lineTo(pts[a1].x,pts[a1].y);}
-      D.stroke();
-    }
-    // vertices
-    for(const p of pts){D.fillStyle=`rgba(225,250,255,${ca})`;D.beginPath();D.arc(p.x,p.y,1.8,0,TAU);D.fill();}
-    // hot centre
-    const hc=D.createRadialGradient(cx,cy,0,cx,cy,R*0.5);
-    hc.addColorStop(0,`rgba(255,255,255,${ca*0.8})`); hc.addColorStop(1,'rgba(120,200,255,0)');
-    D.fillStyle=hc; D.beginPath(); D.arc(cx,cy,R*0.5,0,TAU); D.fill();
+  // 4) inner nucleus (octahedron) — bright contained heart, additive
+  const na=clamp((t-0.4)/0.6,0,1)*(0.6+0.4*b);
+  if(na>0.01){
+    const nr=R*0.34, np=octaV.map(v=>project(v,ax,ay,nr));
+    D.lineWidth=1.4; D.strokeStyle=`rgba(210,245,255,${na})`;
+    D.beginPath(); for(const [a0,a1] of octaE){D.moveTo(np[a0].x,np[a0].y);D.lineTo(np[a1].x,np[a1].y);} D.stroke();
+    const hc=D.createRadialGradient(cx,cy,0,cx,cy,nr*1.7);
+    hc.addColorStop(0,`rgba(255,255,255,${na*0.85})`); hc.addColorStop(1,'rgba(120,200,255,0)');
+    D.fillStyle=hc; D.beginPath(); D.arc(cx,cy,nr*1.7,0,TAU); D.fill();
   }
 
   D.globalCompositeOperation='source-over';
+
+  // 5) outer containment cage (dark faceted metal) — closes around the energy as it seals
+  const cageA=clamp((t-0.22)/0.6,0,1);
+  if(cageA>0.01){
+    const cageR=lerp(R*2.5,R*1.2,e);
+    const cp=cageV.map(v=>project(v,ax*0.82,ay*0.82,cageR));
+    const order=cageE.map(ed=>({ed,z:(cp[ed[0]].z+cp[ed[1]].z)/2})).sort((u,v)=>u.z-v.z);
+    for(const {ed} of order){
+      const p0=cp[ed[0]], p1=cp[ed[1]], depth=((cp[ed[0]].z+cp[ed[1]].z)/2+1)/2, av=cageA*(0.3+0.7*depth);
+      D.lineWidth=3.4*p0.persp; D.strokeStyle=`rgba(11,15,21,${Math.min(1,av+0.25)})`;   // dark strut
+      D.beginPath(); D.moveTo(p0.x,p0.y); D.lineTo(p1.x,p1.y); D.stroke();
+      D.lineWidth=1.2; D.strokeStyle=`rgba(120,180,235,${av*0.75})`;                      // emissive rim
+      D.beginPath(); D.moveTo(p0.x,p0.y); D.lineTo(p1.x,p1.y); D.stroke();
+    }
+    for(const p of cp){const depth=(p.z+1)/2;
+      D.fillStyle=`rgba(18,23,31,${Math.min(1,cageA+0.2)})`; D.beginPath(); D.arc(p.x,p.y,3.4*p.persp,0,TAU); D.fill();
+      D.fillStyle=`rgba(150,205,255,${cageA*(0.3+0.5*depth)})`; D.beginPath(); D.arc(p.x,p.y,1.5*p.persp,0,TAU); D.fill();}
+  }
 }
 
 /* radial hold-dial */
