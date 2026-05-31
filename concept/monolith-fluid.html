@@ -61,6 +61,21 @@ function rot(x,y,z,ax,ay){
   const cxx=Math.cos(ax),sxx=Math.sin(ax), y1=y*cxx-z1*sxx, z2=y*sxx+z1*cxx;
   return [x1,y1,z2];
 }
+// organic, slowly-undulating radius per body direction -> lumpy living shell
+function rho(u,time){
+  return 1 + 0.13*Math.sin(u[0]*2.1+time*0.0004)
+           + 0.10*Math.sin(u[1]*1.7-time*0.0005+1.3)
+           + 0.09*Math.sin(u[2]*2.3+time*0.00035+2.1);
+}
+// wobbly membrane outline instead of a clean ellipse
+function blobPath(c,rad,ph,sp,time){
+  c.beginPath();
+  const M=16;
+  for(let i=0;i<=M;i++){const a=i/M*TAU,
+    rr=rad*(1+0.17*Math.sin(3*a+ph)+0.10*Math.sin(2*a-time*0.001*sp+ph*1.6));
+    const x=Math.cos(a)*rr, y=Math.sin(a)*rr; i?c.lineTo(x,y):c.moveTo(x,y);}
+  c.closePath();
+}
 function setup(){
   dpr=Math.min(2,window.devicePixelRatio||1);
   CW=window.innerWidth; CH=window.innerHeight;
@@ -68,12 +83,12 @@ function setup(){
   cx=CW*0.5; cy=CH*0.43; R=Math.min(CW,CH)*0.19;
 
   // cells distributed on a sphere (Fibonacci), each a glowing hole in the shell
-  cells=[]; const N=104, GA=Math.PI*(3-Math.sqrt(5));
+  cells=[]; const N=122, GA=Math.PI*(3-Math.sqrt(5));
   for(let i=0;i<N;i++){
     const y=1-(i/(N-1))*2, rr=Math.sqrt(Math.max(0,1-y*y)), th=i*GA;
     const u=[Math.cos(th)*rr, y, Math.sin(th)*rr];
     const a=rnd(0,TAU), rad=rnd(CW*0.25,CW*0.8);
-    cells.push({u, size:rnd(0.05,0.15), hue:HUES[(Math.random()*HUES.length)|0],
+    cells.push({u, size:0.04+0.12*Math.pow(Math.random(),1.7), hue:HUES[(Math.random()*HUES.length)|0],
       strands:Math.random()<0.5, spike:Math.random()<0.55?rnd(0.14,0.42):0,
       cx0:cx+Math.cos(a)*rad, cy0:cy+Math.sin(a)*rad, ph:rnd(0,TAU), sp:rnd(.6,1.3)});
   }
@@ -132,7 +147,12 @@ function drawEnergy(t,time){
     sg.addColorStop(0,`rgba(58,44,66,${shellA})`);
     sg.addColorStop(.6,`rgba(28,22,34,${shellA})`);
     sg.addColorStop(1,`rgba(10,9,14,${shellA})`);
-    D.fillStyle=sg; D.beginPath(); D.arc(cx,cy,R*1.02,0,TAU); D.fill();
+    D.fillStyle=sg; D.beginPath();
+    const M=44;
+    for(let i=0;i<=M;i++){const a=i/M*TAU,
+      rad=R*(1.0+0.07*Math.sin(3*a+time*0.0004)+0.05*Math.sin(5*a-time*0.0005+1.1));
+      const x=cx+Math.cos(a)*rad, y=cy+Math.sin(a)*rad; i?D.lineTo(x,y):D.moveTo(x,y);}
+    D.closePath(); D.fill();
   }
 
   // spikes (sea-urchin) on the silhouette — drawn before cells
@@ -141,8 +161,9 @@ function drawEnergy(t,time){
     if(!c.spike) continue;
     const u=rot(c.u[0],c.u[1],c.u[2],ax,ay);
     if(u[2]>0.4) continue;                      // only rim/side spikes show
-    const bx=cx+u[0]*R, by=cy+u[1]*R, L=c.spike*R*e;
-    const tx=cx+u[0]*(R+L), ty=cy+u[1]*(R+L);
+    const RR=R*rho(c.u,time), L=c.spike*R*e;
+    const bx=cx+u[0]*RR, by=cy+u[1]*RR;
+    const tx=cx+u[0]*(RR+L), ty=cy+u[1]*(RR+L);
     D.strokeStyle=`rgba(40,46,58,${shellA*0.9})`; D.lineWidth=2.2;
     D.beginPath(); D.moveTo(bx,by); D.lineTo(tx,ty); D.stroke();
     D.fillStyle=`rgba(210,235,240,${shellA*0.5})`; D.beginPath(); D.arc(tx,ty,1.1,0,TAU); D.fill();
@@ -154,23 +175,26 @@ function drawEnergy(t,time){
                   .sort((a,bb)=>a.u[2]-bb.u[2]);
   for(const {c,u} of proj){
     if(u[2]<-0.15) continue;                    // hidden on the far side
-    const sx=lerp(c.cx0, cx+u[0]*R, e), sy=lerp(c.cy0, cy+u[1]*R, e);
+    const RR=R*rho(c.u,time);
+    const sx=lerp(c.cx0, cx+u[0]*RR, e), sy=lerp(c.cy0, cy+u[1]*RR, e);
     const ang=Math.atan2(sy-cy, sx-cx);
     const minor=clamp(Math.abs(u[2]),0.16,1);   // foreshorten toward silhouette
     const cellR=c.size*R*(0.9+0.2*b);
     const bright=(0.30+0.7*clamp(u[2],0,1))*(0.45+0.55*t);
     D.save(); D.translate(sx,sy); D.rotate(ang); D.scale(minor,1);
-    const g=D.createRadialGradient(0,0,0,0,0,cellR);
+    const g=D.createRadialGradient(0,0,0,0,0,cellR*1.1);
     g.addColorStop(0,`rgba(255,255,255,${bright})`);
     g.addColorStop(.62,`rgba(225,240,255,${bright*0.45})`);
     g.addColorStop(1,'rgba(255,255,255,0)');
-    D.fillStyle=g; D.beginPath(); D.arc(0,0,cellR,0,TAU); D.fill();
-    // iridescent chromatic rim
+    blobPath(D,cellR,c.ph,c.sp,time); D.fillStyle=g; D.fill();
+    // iridescent chromatic rim (offset red/cyan + per-cell hue), on the membrane
     D.lineWidth=1.3;
-    D.strokeStyle=`rgba(255,90,120,${bright*0.5})`; D.beginPath(); D.arc(1.4,0,cellR*0.94,0,TAU); D.stroke();
-    D.strokeStyle=`rgba(90,225,235,${bright*0.5})`; D.beginPath(); D.arc(-1.4,0,cellR*0.94,0,TAU); D.stroke();
-    D.strokeStyle=`rgba(${c.hue[0]},${c.hue[1]},${c.hue[2]},${bright*0.6})`;
-    D.beginPath(); D.arc(0,0,cellR*0.94,0,TAU); D.stroke();
+    D.save(); D.translate(1.4,0); blobPath(D,cellR*0.94,c.ph,c.sp,time);
+      D.strokeStyle=`rgba(255,90,120,${bright*0.5})`; D.stroke(); D.restore();
+    D.save(); D.translate(-1.4,0); blobPath(D,cellR*0.94,c.ph,c.sp,time);
+      D.strokeStyle=`rgba(90,225,235,${bright*0.5})`; D.stroke(); D.restore();
+    blobPath(D,cellR*0.94,c.ph,c.sp,time);
+    D.strokeStyle=`rgba(${c.hue[0]},${c.hue[1]},${c.hue[2]},${bright*0.6})`; D.stroke();
     // web strands inside the larger front cells
     if(c.strands && u[2]>0.45){
       D.strokeStyle=`rgba(255,255,255,${bright*0.35})`; D.lineWidth=0.8;
